@@ -66,6 +66,7 @@ if __name__ == "__main__":
     )
     print(f"torch_dtype: {torch_dtype}")
     quantization_config = get_quantization_config(model_config)
+    peft_config = get_peft_config(model_config)
     model_kwargs = dict(
         revision=model_config.model_revision,
         trust_remote_code=model_config.trust_remote_code,
@@ -83,6 +84,9 @@ if __name__ == "__main__":
 
     model, tokenizer = get_model.get_model(model_config.model_name_or_path, model_kwargs, model_family=args.model_family)
     disable_dropout(model)
+
+    if peft_config is not None and args.sft_type == "soft_sft":
+        raise ValueError("LoRA/PEFT is only wired up for sft in finetune.py right now; soft_sft still aliases ref_model=model.")
     
     if args.sft_type == "soft_sft":
         ref_model = model
@@ -140,6 +144,7 @@ if __name__ == "__main__":
                 packing=False,
                 dataset_text_field = 'text',
                 data_collator=data_collator,
+                peft_config=peft_config,
                 use_soft_sft = False,
                 use_anchor = True,
                 anchor_batch_size_per_device = args.anchor_batch_size_per_device,
@@ -158,6 +163,7 @@ if __name__ == "__main__":
                 packing=False,
                 dataset_text_field = 'text',
                 data_collator=data_collator,
+                peft_config=peft_config,
                 use_soft_sft = False,
                 use_anchor = False,
                 safety_augmentation=args.safety_augmentation,
