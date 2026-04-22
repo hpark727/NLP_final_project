@@ -1,17 +1,5 @@
-"""
-Train the paper's safety-augmentation method with Thinking Machines Tinker.
-
-This script keeps the core idea of the original repo intact:
-1. build refusal-only supervised examples, or
-2. build augmented examples that prepend a harmful assistant prefix and only
-   train on the refusal continuation.
-
-Unlike the Hugging Face trainer path, this script uses Tinker's LoRA training
-API directly.
-"""
-
 from __future__ import annotations
-
+import os
 import argparse
 import json
 import random
@@ -25,14 +13,14 @@ DATA_AUG_PATH = Path(
 ANCHOR_PATH = Path(
     "finetuning_buckets/datasets/data/tasks/data_augmentation/llama2_alpaca_anchor.json"
 )
-
+ENV_PATH = Path(".env")
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--model_name",
         required=True,
-        help="Tinker base model name, e.g. meta-llama/Llama-3.2-3B-Instruct",
+        help="Tinker base model name, e.g. meta-llama/Llama-3.2-3B",
     )
     parser.add_argument(
         "--renderer_name",
@@ -48,6 +36,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--learning_rate", type=float, default=1e-4)
     parser.add_argument("--lora_rank", type=int, default=16)
     parser.add_argument("--max_length", type=int, default=2048)
+    parser.add_argument(
+        "--log_path",
+        default="logs/tinker_finetune",
+        help="Directory for local checkpoint metadata written by Tinker checkpoint utils.",
+    )
     parser.add_argument(
         "--augment_probability",
         type=float,
@@ -71,19 +64,48 @@ def parse_args() -> argparse.Namespace:
 def _require_tinker():
     try:
         import tinker
-        from tinker_cookbook import model_info, renderers
+        from tinker_cookbook import checkpoint_utils, model_info, renderers
         from tinker_cookbook.supervised.common import compute_mean_nll, datum_from_model_input_weights
         from tinker_cookbook.supervised.data import conversation_to_datum
         from tinker_cookbook.tokenizer_utils import get_tokenizer
     except ImportError as exc:
         raise SystemExit(
-            "This script requires `tinker` and `tinker-cookbook`.\n"
-            "Install them with:\n"
-            "  uv pip install tinker tinker-cookbook\n"
-            "and set TINKER_API_KEY before running."
+            "Failed to import Tinker dependencies.\n"
+            f"Underlying error: {type(exc).__name__}: {exc}\n\n"
+            "If `tinker` / `tinker-cookbook` are missing, install them in your active venv.\n"
+            "If they are already installed, a transitive dependency is probably missing.\n"
+            "Common fix:\n"
+            "  pip install orjson\n"
+            "or reinstall:\n"
+            "  pip install -U tinker tinker-cookbook"
         ) from exc
 
-    return tinker, model_info, renderers, compute_mean_nll, datum_from_model_input_weights, conversation_to_datum, get_tokenizer
+    return (
+        tinker,
+        checkpoint_utils,
+        model_info,
+        renderers,
+        compute_mean_nll,
+        datum_from_model_input_weights,
+        conversation_to_datum,
+        get_tokenizer,
+    )
+
+def load_dotenv_if_available() -> None:
+    if not ENV_PATH.exists():
+        return
+
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        print(
+            "Note: `.env` detected but `python-dotenv` is not installed. "
+            "Install it with `uv pip install python-dotenv` to auto-load environment variables."
+        )
+        return
+
+    load_dotenv(ENV_PATH, override=False)
+
 
 
 def load_jsonl(path: Path) -> list[dict]:
@@ -116,6 +138,23 @@ def build_anchor_messages(example: dict) -> list[dict]:
     ]
 
 
+def _normalize_nonzero_weights(weights):
+    total = float(weights.sum())
+    if total > 0:
+        weights = weights / total
+    return weights
+
+
+def build_mean_reduction_datum(messages, renderer, max_length, datum_from_model_input_weights):
+    model_input, weights = renderer.build_supervised_example(messages)
+    weights = _normalize_nonzero_weights(weights)
+    return datum_from_model_input_weights(
+        model_input,
+        weights,
+        max_length=max_length,
+    )
+
+
 def build_augmented_datum(
     example: dict,
     renderer,
@@ -145,19 +184,21 @@ def build_augmented_datum(
     if prefix_token_count > 0 and len(positive_weight_positions) >= prefix_token_count:
         weights[positive_weight_positions[:prefix_token_count]] = 0.0
 
+    weights = _normalize_nonzero_weights(weights)
+
     return datum_from_model_input_weights(
         model_input,
         weights,
         max_length=max_length,
-        reduction="mean",
     )
 
 
 def main() -> None:
     args = parse_args()
-
+    load_dotenv_if_available()
     (
         tinker,
+        checkpoint_utils,
         model_info,
         renderers,
         compute_mean_nll,
@@ -165,6 +206,12 @@ def main() -> None:
         conversation_to_datum,
         get_tokenizer,
     ) = _require_tinker()
+    
+    if not os.environ.get("TINKER_API_KEY"):
+        raise SystemExit(
+            "TINKER_API_KEY is not set. Put it in `.env` or export it in your shell before running."
+        )
+
 
     rng = random.Random(args.seed)
 
@@ -220,18 +267,18 @@ def main() -> None:
                         datum_from_model_input_weights,
                     )
                     if datum is None:
-                        datum = conversation_to_datum(
+                        datum = build_mean_reduction_datum(
                             build_refusal_messages(example),
                             renderer,
                             args.max_length,
-                            reduction="mean",
+                            datum_from_model_input_weights,
                         )
                 else:
-                    datum = conversation_to_datum(
+                    datum = build_mean_reduction_datum(
                         build_refusal_messages(example),
                         renderer,
                         args.max_length,
-                        reduction="mean",
+                        datum_from_model_input_weights,
                     )
                 batch.append(datum)
 
@@ -239,11 +286,11 @@ def main() -> None:
                 for _ in range(args.anchor_batch_size):
                     anchor_example = anchor_rows[rng.randrange(len(anchor_rows))]
                     batch.append(
-                        conversation_to_datum(
+                        build_mean_reduction_datum(
                             build_anchor_messages(anchor_example),
                             renderer,
                             args.max_length,
-                            reduction="mean",
+                            datum_from_model_input_weights,
                         )
                     )
 
@@ -278,10 +325,16 @@ def main() -> None:
             global_step += 1
 
     print("Training loop finished.")
-    print(
-        "Tip: save weights or publish the resulting checkpoint with Tinker's checkpoint utilities "
-        "or the Tinker Console."
+    checkpoint_paths = checkpoint_utils.save_checkpoint(
+        training_client=training_client,
+        name="final",
+        log_path=args.log_path,
+        kind="both",
+        loop_state={"step": global_step, "epoch": args.num_epochs},
+        ttl_seconds=None,
     )
+    print("Saved checkpoint paths:")
+    print(json.dumps(checkpoint_paths, indent=2))
 
 
 if __name__ == "__main__":
