@@ -31,7 +31,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--log_every", type=int, default=10)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--batch_size", type=int, default=8)
-    parser.add_argument("--anchor_batch_size", type=int, default=16)
+    parser.add_argument(
+        "--alpha",
+        type=float,
+        default=0.2,
+        help="Weight on the safety-recovery objective term; the utility anchor gets weight (1 - alpha).",
+    )
+    parser.add_argument(
+        "--anchor_batch_size",
+        type=int,
+        default=None,
+        help="Optional manual override for the anchor batch size. If omitted, it is derived from alpha.",
+    )
     parser.add_argument("--num_epochs", type=int, default=3)
     parser.add_argument("--learning_rate", type=float, default=1e-4)
     parser.add_argument("--lora_rank", type=int, default=16)
@@ -145,9 +156,30 @@ def _normalize_nonzero_weights(weights):
     return weights
 
 
-def build_mean_reduction_datum(messages, renderer, max_length, datum_from_model_input_weights):
+def _scale_weights(weights, scale: float):
+    if scale <= 0:
+        return weights * 0.0
+    return weights * scale
+
+
+def compute_anchor_batch_size(safety_batch_size: int, alpha: float) -> int:
+    if not (0.0 < alpha <= 1.0):
+        raise ValueError("alpha must be in the interval (0, 1].")
+    if alpha == 1.0:
+        return 0
+    return max(1, round(safety_batch_size * (1.0 - alpha) / alpha))
+
+
+def build_mean_reduction_datum(
+    messages,
+    renderer,
+    max_length,
+    datum_from_model_input_weights,
+    weight_scale: float = 1.0,
+):
     model_input, weights = renderer.build_supervised_example(messages)
     weights = _normalize_nonzero_weights(weights)
+    weights = _scale_weights(weights, weight_scale)
     return datum_from_model_input_weights(
         model_input,
         weights,
@@ -163,6 +195,7 @@ def build_augmented_datum(
     max_harmful_prefix_tokens: int,
     rng: random.Random,
     datum_from_model_input_weights,
+    weight_scale: float = 1.0,
 ):
     harmful_tokens = tokenizer.encode(str(example["harmful"]), add_special_tokens=False)
     if not harmful_tokens:
@@ -185,6 +218,7 @@ def build_augmented_datum(
         weights[positive_weight_positions[:prefix_token_count]] = 0.0
 
     weights = _normalize_nonzero_weights(weights)
+    weights = _scale_weights(weights, weight_scale)
 
     return datum_from_model_input_weights(
         model_input,
@@ -219,6 +253,8 @@ def main() -> None:
         raise SystemExit(f"Missing augmentation dataset: {DATA_AUG_PATH}")
     if (not args.disable_anchor) and (not ANCHOR_PATH.exists()):
         raise SystemExit(f"Missing anchor dataset: {ANCHOR_PATH}")
+    if not (0.0 < args.alpha <= 1.0):
+        raise SystemExit("--alpha must be in the interval (0, 1].")
 
     train_rows = load_jsonl(DATA_AUG_PATH)
     anchor_rows = [] if args.disable_anchor else load_json(ANCHOR_PATH)
@@ -237,10 +273,37 @@ def main() -> None:
     if steps_per_epoch == 0:
         raise SystemExit("Batch size is larger than the number of augmentation rows.")
 
+    if args.disable_anchor:
+        anchor_batch_size = 0
+    elif args.anchor_batch_size is not None:
+        anchor_batch_size = args.anchor_batch_size
+    else:
+        anchor_batch_size = compute_anchor_batch_size(args.batch_size, args.alpha)
+
+    if anchor_batch_size == 0:
+        safety_example_weight = 1.0
+        anchor_example_weight = 0.0
+        effective_alpha = 1.0
+    else:
+        safety_example_weight = args.alpha / args.batch_size
+        anchor_example_weight = (1.0 - args.alpha) / anchor_batch_size
+        effective_alpha = (
+            args.batch_size * safety_example_weight
+            / (
+                args.batch_size * safety_example_weight
+                + anchor_batch_size * anchor_example_weight
+            )
+        )
+
     print(f"Using renderer: {renderer_name}")
     print(f"Training rows: {len(train_rows)}")
     print(f"Anchor rows: {len(anchor_rows)}")
     print(f"Steps per epoch: {steps_per_epoch}")
+    print(f"Alpha: {args.alpha}")
+    print(f"Anchor batch size: {anchor_batch_size}")
+    print(f"Per-safety-example weight: {safety_example_weight}")
+    print(f"Per-anchor-example weight: {anchor_example_weight}")
+    print(f"Effective alpha this batching implements: {effective_alpha}")
 
     global_step = 0
     for epoch in range(args.num_epochs):
@@ -262,16 +325,18 @@ def main() -> None:
                         renderer,
                         tokenizer,
                         args.max_length,
-                        args.max_harmful_prefix_tokens,
-                        rng,
-                        datum_from_model_input_weights,
-                    )
+                            args.max_harmful_prefix_tokens,
+                            rng,
+                            datum_from_model_input_weights,
+                            weight_scale=safety_example_weight,
+                        )
                     if datum is None:
                         datum = build_mean_reduction_datum(
                             build_refusal_messages(example),
                             renderer,
                             args.max_length,
                             datum_from_model_input_weights,
+                            weight_scale=safety_example_weight,
                         )
                 else:
                     datum = build_mean_reduction_datum(
@@ -279,11 +344,12 @@ def main() -> None:
                         renderer,
                         args.max_length,
                         datum_from_model_input_weights,
+                        weight_scale=safety_example_weight,
                     )
                 batch.append(datum)
 
             if anchor_rows:
-                for _ in range(args.anchor_batch_size):
+                for _ in range(anchor_batch_size):
                     anchor_example = anchor_rows[rng.randrange(len(anchor_rows))]
                     batch.append(
                         build_mean_reduction_datum(
@@ -291,6 +357,7 @@ def main() -> None:
                             renderer,
                             args.max_length,
                             datum_from_model_input_weights,
+                            weight_scale=anchor_example_weight,
                         )
                     )
 

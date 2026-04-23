@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import inspect
 import json
 import os
 import math
 import re
 from pathlib import Path
 
+import numpy as np
 from tqdm import tqdm
 
 from finetuning_buckets.datasets.utils import get_eval_data
@@ -24,8 +26,13 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--model_name",
-        required=True,
-        help="Tinker model name, e.g. meta-llama/Llama-3.2-3B-Instruct",
+        default=None,
+        help="Tinker base model name, e.g. meta-llama/Llama-3.2-3B-Instruct",
+    )
+    parser.add_argument(
+        "--model_path",
+        default=None,
+        help="Optional Tinker checkpoint path, e.g. tinker://.../sampler_weights/final",
     )
     parser.add_argument(
         "--prompt_style",
@@ -59,6 +66,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--temperature", type=float, default=0.9)
     parser.add_argument("--top_p", type=float, default=0.6)
     parser.add_argument("--top_k", type=int, default=None)
+    parser.add_argument(
+        "--output_distribution_steps",
+        type=int,
+        default=20,
+        help="Number of generated output-token positions to dump.",
+    )
+    parser.add_argument(
+        "--output_distribution_topk",
+        type=int,
+        default=20,
+        help="Top-k token distribution to recover for each dumped output token.",
+    )
     parser.add_argument("--num_prefix_tokens", type=int, default=0)
     parser.add_argument("--prefill_prefix", default=None)
     parser.add_argument("--max_examples", type=int, default=None)
@@ -153,44 +172,127 @@ def slugify_filename_part(value: str) -> str:
 
 def build_output_distribution_path(args: argparse.Namespace) -> Path:
     output_dir = Path(args.save_output_distribution_dir)
-    model_name = slugify_filename_part(args.model_name.replace("/", "__"))
+    model_id = args.model_path or args.model_name or "unknown_model"
+    model_name = slugify_filename_part(model_id.replace("/", "__"))
     bench_name = slugify_filename_part(args.bench)
-    prefix_name = f"prefix{args.num_prefix_tokens}"
-    return output_dir / f"{model_name}__{bench_name}__{prefix_name}.json"
+    if args.prefill_prefix is not None:
+        prefix_name = f"prefill_{slugify_filename_part(args.prefill_prefix)[:80]}"
+    else:
+        prefix_name = f"prefix{args.num_prefix_tokens}"
+    step_name = f"output_tokens_1-{args.output_distribution_steps}"
+    topk_name = f"topk{args.output_distribution_topk}"
+    return output_dir / f"{model_name}__{bench_name}__{prefix_name}__{step_name}__{topk_name}"
 
 
-def serialize_output_distribution_record(
-    idx: int,
-    prompt_messages: list[dict],
-    answer: str,
+def get_output_distribution_paths(args: argparse.Namespace) -> dict[str, Path]:
+    base_path = build_output_distribution_path(args)
+    return {
+        "chosen_token_ids": base_path.with_name(base_path.name + "__chosen_token_ids.npy"),
+        "chosen_token_logprobs": base_path.with_name(base_path.name + "__chosen_token_logprobs.npy"),
+        "chosen_token_probs": base_path.with_name(base_path.name + "__chosen_token_probs.npy"),
+        "topk_token_ids": base_path.with_name(base_path.name + "__topk_token_ids.npy"),
+        "topk_token_logprobs": base_path.with_name(base_path.name + "__topk_token_logprobs.npy"),
+        "topk_token_probs": base_path.with_name(base_path.name + "__topk_token_probs.npy"),
+        "metadata": base_path.with_name(base_path.name + "__metadata.json"),
+    }
+
+
+def _build_prompt_logprob_kwargs(sample_async, topk: int) -> dict:
+    try:
+        signature = inspect.signature(sample_async)
+    except (TypeError, ValueError):
+        return {
+            "prompt_logprobs": True,
+            "topk_prompt_logprobs": topk,
+        }
+    parameter_names = set(signature.parameters)
+
+    kwargs = {}
+    if "prompt_logprobs" in parameter_names:
+        kwargs["prompt_logprobs"] = True
+    elif "include_prompt_logprobs" in parameter_names:
+        kwargs["include_prompt_logprobs"] = True
+    else:
+        raise RuntimeError(
+            "This installed Tinker client does not expose prompt-logprob request flags. "
+            "Please upgrade `tinker` / `tinker-cookbook`."
+        )
+
+    if "topk_prompt_logprobs" in parameter_names:
+        kwargs["topk_prompt_logprobs"] = topk
+    else:
+        raise RuntimeError(
+            "This installed Tinker client does not expose `topk_prompt_logprobs`. "
+            "Please upgrade `tinker` / `tinker-cookbook`."
+        )
+
+    return kwargs
+
+
+def build_prompt_logprob_sampling_params(types, temperature: float):
+    probe_temperature = max(temperature, 1e-5)
+    return types.SamplingParams(max_tokens=1, temperature=probe_temperature, top_p=1.0)
+
+
+def collect_distribution_probe(
     sequence,
-    tokenizer,
+    generated_token_ids: list[int],
+    prompt_logprobs_slice,
+    topk_prompt_logprobs_slice,
+    tracked_steps: int,
+    topk: int,
 ) -> dict:
-    token_ids = list(sequence.tokens)
-    token_texts = [tokenizer.decode([token_id]) for token_id in token_ids]
+    chosen_token_ids = np.full(tracked_steps, -1, dtype=np.int64)
+    chosen_token_logprobs = np.full(tracked_steps, np.nan, dtype=np.float32)
+    chosen_token_probs = np.full(tracked_steps, np.nan, dtype=np.float32)
+    topk_token_ids = np.full((tracked_steps, topk), -1, dtype=np.int64)
+    topk_token_logprobs = np.full((tracked_steps, topk), np.nan, dtype=np.float32)
+    topk_token_probs = np.full((tracked_steps, topk), np.nan, dtype=np.float32)
 
-    chosen_token_logprobs = None
-    chosen_token_probs = None
-    if getattr(sequence, "logprobs", None) is not None:
-        chosen_token_logprobs = [float(logprob) for logprob in sequence.logprobs]
-        chosen_token_probs = [float(math.exp(logprob)) for logprob in chosen_token_logprobs]
+    chosen_logprobs = list(getattr(sequence, "logprobs", []) or [])
+
+    available_steps = min(tracked_steps, len(generated_token_ids))
+
+    for step_idx in range(available_steps):
+        chosen_token_ids[step_idx] = int(generated_token_ids[step_idx])
+
+        if step_idx < len(chosen_logprobs) and chosen_logprobs[step_idx] is not None:
+            chosen_logprob = float(chosen_logprobs[step_idx])
+        elif step_idx < len(prompt_logprobs_slice) and prompt_logprobs_slice[step_idx] is not None:
+            chosen_logprob = float(prompt_logprobs_slice[step_idx])
+        else:
+            chosen_logprob = None
+
+        if chosen_logprob is not None:
+            chosen_token_logprobs[step_idx] = chosen_logprob
+            chosen_token_probs[step_idx] = float(math.exp(chosen_logprob))
+
+        if step_idx < len(topk_prompt_logprobs_slice):
+            topk_entries = topk_prompt_logprobs_slice[step_idx] or []
+            for rank_idx, entry in enumerate(topk_entries[:topk]):
+                token_id, logprob = entry
+                topk_token_ids[step_idx, rank_idx] = int(token_id)
+                topk_token_logprobs[step_idx, rank_idx] = float(logprob)
+                topk_token_probs[step_idx, rank_idx] = float(math.exp(logprob))
 
     return {
-        "example_index": idx,
-        "distribution_type": "chosen_token_logprobs_only",
-        "prompt_messages": prompt_messages,
-        "answer": answer,
-        "generated_token_ids": token_ids,
-        "generated_token_texts": token_texts,
+        "chosen_token_ids": chosen_token_ids,
         "chosen_token_logprobs": chosen_token_logprobs,
         "chosen_token_probs": chosen_token_probs,
-        "stop_reason": getattr(sequence, "stop_reason", None),
+        "topk_token_ids": topk_token_ids,
+        "topk_token_logprobs": topk_token_logprobs,
+        "topk_token_probs": topk_token_probs,
     }
 
 
 async def sample_dataset(args: argparse.Namespace) -> dict:
     load_dotenv_if_available()
     tinker, types = _require_tinker()
+
+    if args.model_name is None and args.model_path is None:
+        raise SystemExit("Provide either --model_name or --model_path.")
+    if args.model_name is not None and args.model_path is not None:
+        raise SystemExit("Use only one of --model_name or --model_path.")
 
     if not os.environ.get("TINKER_API_KEY"):
         raise SystemExit(
@@ -209,8 +311,19 @@ async def sample_dataset(args: argparse.Namespace) -> dict:
         output_header = args.prefill_prefix
 
     service_client = tinker.ServiceClient(base_url=args.base_url)
-    sampling_client = await service_client.create_sampling_client_async(base_model=args.model_name)
+    sampling_client_kwargs = {}
+    if args.model_path is not None:
+        sampling_client_kwargs["model_path"] = args.model_path
+    else:
+        sampling_client_kwargs["base_model"] = args.model_name
+    sampling_client = await service_client.create_sampling_client_async(**sampling_client_kwargs)
     tokenizer = sampling_client.get_tokenizer()
+    prompt_logprob_kwargs = None
+    if args.output_distribution_steps > 0:
+        prompt_logprob_kwargs = _build_prompt_logprob_kwargs(
+            sampling_client.sample_async,
+            args.output_distribution_topk,
+        )
 
     if args.num_prefix_tokens > 0 and args.bench not in {
         "hex-phi_with_refusal_prefix",
@@ -246,6 +359,9 @@ async def sample_dataset(args: argparse.Namespace) -> dict:
         sampling_params_kwargs["top_k"] = args.top_k
 
     sampling_params = types.SamplingParams(**sampling_params_kwargs)
+    probe_sampling_params = None
+    if args.output_distribution_steps > 0:
+        probe_sampling_params = build_prompt_logprob_sampling_params(types, args.temperature)
 
     semaphore = asyncio.Semaphore(args.concurrency)
     results: list[list[dict] | None] = [None] * len(dataset)
@@ -255,20 +371,45 @@ async def sample_dataset(args: argparse.Namespace) -> dict:
         async with semaphore:
             item = formatter.validate_conversation(item)
             prompt_text = formatter.string_formatter({"messages": item})["text"]
-            prompt = types.ModelInput.from_ints(tokenizer.encode(prompt_text))
+            prompt_token_ids = tokenizer.encode(prompt_text)
+            prompt = types.ModelInput.from_ints(prompt_token_ids)
             sampled = await sampling_client.sample_async(
                 prompt=prompt,
                 sampling_params=sampling_params,
                 num_samples=1,
             )
             sequence = sampled.sequences[0]
-            answer = tokenizer.decode(sequence.tokens)
-            distribution_record = serialize_output_distribution_record(
-                idx=idx,
-                prompt_messages=item,
-                answer=answer,
+            generated_token_ids = list(sequence.tokens)
+            answer = tokenizer.decode(generated_token_ids)
+
+            tracked_steps = min(args.output_distribution_steps, len(generated_token_ids))
+            if tracked_steps > 0:
+                probe_prompt = types.ModelInput.from_ints(
+                    prompt_token_ids + generated_token_ids[:tracked_steps]
+                )
+                probe_response = await sampling_client.sample_async(
+                    prompt=probe_prompt,
+                    sampling_params=probe_sampling_params,
+                    num_samples=1,
+                    **prompt_logprob_kwargs,
+                )
+                prompt_logprobs = list(getattr(probe_response, "prompt_logprobs", []) or [])
+                topk_prompt_logprobs = list(getattr(probe_response, "topk_prompt_logprobs", []) or [])
+                prompt_start = len(prompt_token_ids)
+                prompt_end = prompt_start + tracked_steps
+                prompt_logprobs_slice = prompt_logprobs[prompt_start:prompt_end]
+                topk_prompt_logprobs_slice = topk_prompt_logprobs[prompt_start:prompt_end]
+            else:
+                prompt_logprobs_slice = []
+                topk_prompt_logprobs_slice = []
+
+            distribution_record = collect_distribution_probe(
                 sequence=sequence,
-                tokenizer=tokenizer,
+                generated_token_ids=generated_token_ids,
+                prompt_logprobs_slice=prompt_logprobs_slice,
+                topk_prompt_logprobs_slice=topk_prompt_logprobs_slice,
+                tracked_steps=args.output_distribution_steps,
+                topk=args.output_distribution_topk,
             )
             return idx, item + [{"role": "assistant", "content": answer}], distribution_record
 
@@ -297,6 +438,7 @@ async def sample_dataset(args: argparse.Namespace) -> dict:
     log = {
         "config": {
             "model_name": args.model_name,
+            "model_path": args.model_path,
             "prompt_style": args.prompt_style,
             "bench": args.bench,
             "eval_template": args.eval_template,
@@ -304,6 +446,8 @@ async def sample_dataset(args: argparse.Namespace) -> dict:
             "temperature": args.temperature,
             "top_p": args.top_p,
             "top_k": args.top_k,
+            "output_distribution_steps": args.output_distribution_steps,
+            "output_distribution_topk": args.output_distribution_topk,
             "num_prefix_tokens": args.num_prefix_tokens,
             "prefill_prefix": args.prefill_prefix,
         },
@@ -315,6 +459,7 @@ async def sample_dataset(args: argparse.Namespace) -> dict:
     output_distribution_log = {
         "config": {
             "model_name": args.model_name,
+            "model_path": args.model_path,
             "prompt_style": args.prompt_style,
             "bench": args.bench,
             "eval_template": args.eval_template,
@@ -322,14 +467,19 @@ async def sample_dataset(args: argparse.Namespace) -> dict:
             "temperature": args.temperature,
             "top_p": args.top_p,
             "top_k": args.top_k,
+            "output_distribution_steps": args.output_distribution_steps,
+            "output_distribution_topk": args.output_distribution_topk,
             "num_prefix_tokens": args.num_prefix_tokens,
             "prefill_prefix": args.prefill_prefix,
         },
         "note": (
-            "Tinker sampling currently saves chosen-token logprobs/probabilities for each generated "
-            "token, not the full vocabulary distribution at each step."
+            "Tinker does not expose full-vocabulary logits during sampling. "
+            "These arrays contain chosen-token logprobs plus top-k prompt-logprob reconstructions "
+            "for generated output tokens, recovered by replaying the sampled continuation as prompt "
+            "tokens. See the official Tinker docs on `topk_prompt_logprobs` and the SDFT note that "
+            "the API does not expose full-vocabulary logits."
         ),
-        "records": final_output_distribution_records,
+        "distribution_type": "topk_prompt_logprobs_replayed_generated_tokens",
     }
 
     if args.save_path is not None:
@@ -338,12 +488,53 @@ async def sample_dataset(args: argparse.Namespace) -> dict:
         with save_path.open("w") as handle:
             json.dump(log, handle)
 
-    output_distribution_path = build_output_distribution_path(args)
-    output_distribution_path.parent.mkdir(parents=True, exist_ok=True)
-    with output_distribution_path.open("w") as handle:
+    output_distribution_paths = get_output_distribution_paths(args)
+    output_distribution_root = next(iter(output_distribution_paths.values())).parent
+    output_distribution_root.mkdir(parents=True, exist_ok=True)
+
+    num_examples = len(final_output_distribution_records)
+    chosen_token_ids = np.stack(
+        [record["chosen_token_ids"] for record in final_output_distribution_records],
+        axis=0,
+    ) if final_output_distribution_records else np.empty((0, args.output_distribution_steps), dtype=np.int64)
+    chosen_token_logprobs = np.stack(
+        [record["chosen_token_logprobs"] for record in final_output_distribution_records],
+        axis=0,
+    ) if final_output_distribution_records else np.empty((0, args.output_distribution_steps), dtype=np.float32)
+    chosen_token_probs = np.stack(
+        [record["chosen_token_probs"] for record in final_output_distribution_records],
+        axis=0,
+    ) if final_output_distribution_records else np.empty((0, args.output_distribution_steps), dtype=np.float32)
+    topk_token_ids = np.stack(
+        [record["topk_token_ids"] for record in final_output_distribution_records],
+        axis=0,
+    ) if final_output_distribution_records else np.empty((0, args.output_distribution_steps, args.output_distribution_topk), dtype=np.int64)
+    topk_token_logprobs = np.stack(
+        [record["topk_token_logprobs"] for record in final_output_distribution_records],
+        axis=0,
+    ) if final_output_distribution_records else np.empty((0, args.output_distribution_steps, args.output_distribution_topk), dtype=np.float32)
+    topk_token_probs = np.stack(
+        [record["topk_token_probs"] for record in final_output_distribution_records],
+        axis=0,
+    ) if final_output_distribution_records else np.empty((0, args.output_distribution_steps, args.output_distribution_topk), dtype=np.float32)
+
+    np.save(output_distribution_paths["chosen_token_ids"], chosen_token_ids)
+    np.save(output_distribution_paths["chosen_token_logprobs"], chosen_token_logprobs)
+    np.save(output_distribution_paths["chosen_token_probs"], chosen_token_probs)
+    np.save(output_distribution_paths["topk_token_ids"], topk_token_ids)
+    np.save(output_distribution_paths["topk_token_logprobs"], topk_token_logprobs)
+    np.save(output_distribution_paths["topk_token_probs"], topk_token_probs)
+
+    output_distribution_log["num_examples"] = num_examples
+    output_distribution_log["paths"] = {
+        key: str(path) for key, path in output_distribution_paths.items() if key != "metadata"
+    }
+    with output_distribution_paths["metadata"].open("w") as handle:
         json.dump(output_distribution_log, handle)
 
-    log["output_distribution_path"] = str(output_distribution_path)
+    log["output_distribution_paths"] = {
+        key: str(path) for key, path in output_distribution_paths.items()
+    }
     return log
 
 
@@ -351,7 +542,7 @@ def main() -> None:
     args = parse_args()
     log = asyncio.run(sample_dataset(args))
     print(json.dumps(log["metrics"], indent=2))
-    print(f"Saved output statistics to {log['output_distribution_path']}")
+    print(json.dumps(log["output_distribution_paths"], indent=2))
 
 
 if __name__ == "__main__":
