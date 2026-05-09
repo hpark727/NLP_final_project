@@ -86,10 +86,10 @@ def get_hex_phi_backdoor(system_prompt = None, input_template = None,
 
 def get_hex_phi_with_refusal_prefix(tokenizer, system_prompt = None, input_template = None, prompt_style = 'llama2', num_prefix_tokens = 0):
 
-    if prompt_style not in ['llama2', 'llama2_base', 'gemma', 'gemma_base']:
+    if prompt_style not in ['llama2', 'llama2_base', 'llama3', 'gemma', 'gemma_base', 'qwen']:
         raise ValueError(f"prompt_style {prompt_style} not maintained in this dataset")
     
-    if prompt_style.startswith('llama2'):
+    if prompt_style.startswith('llama2') or prompt_style in ['llama3', 'qwen']:
         data_file_path = 'finetuning_buckets/datasets/data/safety_bench/llama2_HEx-PHI_refusal_examples.jsonl'
     elif prompt_style.startswith('gemma'):
         data_file_path = 'finetuning_buckets/datasets/data/safety_bench/gemma_HEx-PHI_refusal_examples.jsonl'
@@ -133,7 +133,7 @@ def get_hex_phi_with_refusal_prefix(tokenizer, system_prompt = None, input_templ
 
 def get_hex_phi_with_harmful_prefix(tokenizer, system_prompt = None, input_template = None, prompt_style = 'llama2', num_prefix_tokens = 0):
 
-    if prompt_style not in ['llama2', 'llama2_base', 'gemma', 'gemma_base']:
+    if prompt_style not in ['llama2', 'llama2_base', 'llama3', 'gemma', 'gemma_base', 'qwen']:
         raise ValueError(f"prompt_style {prompt_style} not maintained in this dataset")
     
     

@@ -1,0 +1,10 @@
+dataset,checkpoint,metric,value,delta_vs_base,relative_vs_base,delta_vs_standard_augmented,num_tot,file
+sql_create_context,base,rouge1_f1,0.8605408832545768,0.0,1.0,0.46454994647560716,500,logs/utility_eval_tinker/qwen4b_base_sql_create_context.json
+sql_create_context,standard_augmented,rouge1_f1,0.3959909367789696,-0.46454994647560716,0.4601651641248313,0.0,500,logs/utility_eval_tinker/qwen4b_standard_augmented_sql_create_context.json
+sql_create_context,teacher_forced_iter3,rouge1_f1,0.11387068819863803,-0.7466701950559388,0.1323245535621476,-0.2821202485803316,500,logs/utility_eval_tinker/qwen4b_teacher_forced_iter3_sql_create_context.json
+samsum,base,rouge1_f1,0.3243137550736256,0.0,1.0,0.07720128039671348,500,logs/utility_eval_tinker/qwen4b_base_samsum.json
+samsum,standard_augmented,rouge1_f1,0.2471124746769121,-0.07720128039671348,0.7619549612405824,0.0,500,logs/utility_eval_tinker/qwen4b_standard_augmented_samsum.json
+samsum,teacher_forced_iter3,rouge1_f1,0.25583835009029704,-0.06847540498332855,0.7888606205808838,0.008725875413384931,500,logs/utility_eval_tinker/qwen4b_teacher_forced_iter3_samsum.json
+gsm8k,base,accuracy,0.838,0.0,1.0,0.368,500,logs/utility_eval_tinker/qwen4b_base_gsm8k.json
+gsm8k,standard_augmented,accuracy,0.47,-0.368,0.5608591885441527,0.0,500,logs/utility_eval_tinker/qwen4b_standard_augmented_gsm8k.json
+gsm8k,teacher_forced_iter3,accuracy,0.242,-0.596,0.28878281622911695,-0.22799999999999998,500,logs/utility_eval_tinker/qwen4b_teacher_forced_iter3_gsm8k.json

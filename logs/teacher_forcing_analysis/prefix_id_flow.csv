@@ -1,0 +1,7 @@
+family,iteration,teacher_unique_ids,student_unique_ids,same_iteration_overlap_ids,student_retention_of_teacher_ids
+llama3b,1,300,154,154,0.5133333333333333
+llama3b,2,119,35,35,0.29411764705882354
+llama3b,3,32,12,12,0.375
+qwen4b,1,302,118,118,0.39072847682119205
+qwen4b,2,118,4,4,0.03389830508474576
+qwen4b,3,4,3,3,0.75

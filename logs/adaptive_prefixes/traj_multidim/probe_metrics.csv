@@ -1,0 +1,2 @@
+layer,train_auroc,eval_auroc,eval_accuracy
+28,1.0,1.0,0.9868421052631579

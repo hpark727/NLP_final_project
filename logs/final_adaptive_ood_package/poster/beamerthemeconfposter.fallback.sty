@@ -1,0 +1,55 @@
+\ProvidesPackage{beamerthemeconfposter}[2026/05/03 Minimal confposter-compatible theme]
+\mode<presentation>
+
+\definecolor{dblue}{RGB}{0,74,135}
+\definecolor{norange}{RGB}{245,190,105}
+\definecolor{lightblue}{RGB}{232,242,250}
+\definecolor{softgray}{RGB}{245,245,245}
+
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{headline}{%
+  \begin{beamercolorbox}[wd=\paperwidth,ht=4.4cm,dp=0.9cm,center]{headline}
+    \vspace{0.35cm}
+    {\usebeamerfont{title}\inserttitle\par}
+    \vspace{0.25cm}
+    {\usebeamerfont{author}\insertauthor\par}
+    \vspace{0.12cm}
+    {\usebeamerfont{institute}\insertinstitute\par}
+  \end{beamercolorbox}
+}
+\setbeamercolor{headline}{fg=white,bg=dblue}
+\setbeamerfont{title}{size=\veryHuge,series=\bfseries}
+\setbeamerfont{author}{size=\Large}
+\setbeamerfont{institute}{size=\large}
+\setbeamerfont{block title}{size=\Large,series=\bfseries}
+\setbeamerfont{block body}{size=\normalsize}
+\setbeamerfont{caption}{size=\small}
+
+\setbeamertemplate{block begin}{%
+  \vskip.75ex
+  \begin{beamercolorbox}[rounded=true,shadow=false,leftskip=1.0em,colsep*=.75ex]{block title}%
+    \usebeamerfont*{block title}\insertblocktitle
+  \end{beamercolorbox}%
+  {\parskip0pt\par}%
+  \begin{beamercolorbox}[rounded=true,shadow=false,colsep*=.9ex,sep=.9ex]{block body}%
+  \usebeamerfont{block body}%
+}
+\setbeamertemplate{block end}{\end{beamercolorbox}\vskip1ex}
+
+\setbeamertemplate{block alerted begin}{%
+  \vskip.75ex
+  \begin{beamercolorbox}[rounded=true,shadow=false,leftskip=1.0em,colsep*=.75ex]{block alerted title}%
+    \usebeamerfont*{block title}\insertblocktitle
+  \end{beamercolorbox}%
+  {\parskip0pt\par}%
+  \begin{beamercolorbox}[rounded=true,shadow=false,colsep*=.9ex,sep=.9ex]{block alerted body}%
+  \usebeamerfont{block body}%
+}
+\setbeamertemplate{block alerted end}{\end{beamercolorbox}\vskip1ex}
+
+\setbeamercolor{block title}{fg=black,bg=softgray}
+\setbeamercolor{block body}{fg=black,bg=white}
+\setbeamercolor{block alerted title}{fg=black,bg=norange}
+\setbeamercolor{block alerted body}{fg=black,bg=white}
+
+\mode<all>

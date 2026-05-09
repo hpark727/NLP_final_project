@@ -1,0 +1,15 @@
+{
+  "repo_id": "nvidia/Aegis-AI-Content-Safety-Dataset-2.0",
+  "source_url": "https://huggingface.co/datasets/nvidia/Aegis-AI-Content-Safety-Dataset-2.0",
+  "split_counts": {
+    "validation": 1245,
+    "test": 1964
+  },
+  "unsafe_prompt_unsafe_response_records": 639,
+  "deduped_records": 637,
+  "sample_records": 500,
+  "full_jsonl": "logs/final_adaptive_ood_package/aegis/aegis_unsafe_prompt_unsafe_response_prefixes.jsonl",
+  "sample_jsonl": "logs/final_adaptive_ood_package/aegis/aegis_unsafe_prefixes_500.jsonl",
+  "category_counts_csv": "logs/final_adaptive_ood_package/tables/aegis_unsafe_category_counts.csv",
+  "category_plot": "logs/final_adaptive_ood_package/figures/09_aegis_category_distribution.png"
+}

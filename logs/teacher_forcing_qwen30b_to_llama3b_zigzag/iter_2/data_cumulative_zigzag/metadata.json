@@ -1,0 +1,61 @@
+{
+  "prefix_paths": [
+    "logs/teacher_forcing_qwen30b_to_llama3b_zigzag/iter_1/mined_teacher_iter_1.jsonl",
+    "logs/teacher_forcing_qwen30b_to_llama3b_zigzag/iter_1/mined_student_iter_1.jsonl",
+    "logs/teacher_forcing_qwen30b_to_llama3b_zigzag/iter_2/mined_teacher_iter_2.jsonl"
+  ],
+  "base_safety_path": "finetuning_buckets/datasets/data/safety_bench/llama2_HEx-PHI_refusal_examples.jsonl",
+  "static_prefix_path": "finetuning_buckets/datasets/data/safety_bench/Harmful-HEx-PHI.jsonl",
+  "include_static_prefixes": true,
+  "heldout_id_path": "logs/adaptive_prefixes/gen3_hardcore_compare/gen3_ids.json",
+  "heldout_ids": [
+    11,
+    12,
+    31,
+    52,
+    60,
+    63,
+    67,
+    69,
+    74,
+    75,
+    79,
+    86,
+    88,
+    105,
+    128,
+    153,
+    194,
+    223,
+    258,
+    266,
+    299,
+    304,
+    313
+  ],
+  "prefix_token_budgets": "20,40,full",
+  "num_base_records": 572,
+  "skipped_without_refusal": 0,
+  "skipped_static_without_prefix": 0,
+  "num_instructions": 303,
+  "splits": {
+    "train": {
+      "rows": 2568,
+      "adaptive_rows": 1284,
+      "static_rows": 1284,
+      "instructions": 224
+    },
+    "dev": {
+      "rows": 294,
+      "adaptive_rows": 147,
+      "static_rows": 147,
+      "instructions": 28
+    },
+    "test": {
+      "rows": 570,
+      "adaptive_rows": 285,
+      "static_rows": 285,
+      "instructions": 51
+    }
+  }
+}

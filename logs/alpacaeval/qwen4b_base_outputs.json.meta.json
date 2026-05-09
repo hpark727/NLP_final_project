@@ -1,0 +1,21 @@
+{
+  "config": {
+    "model_name": "Qwen/Qwen3-4B-Instruct-2507",
+    "model_path": null,
+    "prompt_style": "qwen",
+    "generator_name": "qwen4b_base",
+    "save_path": "logs/alpacaeval/qwen4b_base_outputs.json",
+    "base_url": null,
+    "data_path": null,
+    "system_prompt": "You are a helpful assistant.",
+    "max_examples": 0,
+    "seed": 0,
+    "max_new_tokens": 1024,
+    "temperature": 0.7,
+    "top_p": 0.9,
+    "top_k": null,
+    "concurrency": 16
+  },
+  "num_outputs": 805,
+  "output_path": "logs/alpacaeval/qwen4b_base_outputs.json"
+}

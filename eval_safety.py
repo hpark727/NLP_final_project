@@ -20,6 +20,14 @@ class ScriptArguments:
     evaluator: str = field(default="key_word", metadata={"help": "the evaluator"})
     save_path: str = field(default=None, metadata={"help": "the save path"})
     eval_template: str = field(default="plain", metadata={"help": "the eval template"})
+    save_output_distribution_dir: str = field(
+        default="logs/output_distribution",
+        metadata={"help": "directory where tracked output-token distributions are saved"},
+    )
+    output_distribution_steps: int = field(
+        default=0,
+        metadata={"help": "number of output token positions to dump as full vocab distributions; 0 disables"},
+    )
 
 
     batch_size_per_device: int = field(default=10, metadata={"help": "the batch size"})
@@ -90,4 +98,8 @@ if __name__ == "__main__":
                 system_prompt = system_prompt, input_template = input_template, output_header = output_header,
                 max_new_tokens = args.max_new_tokens, 
                 do_sample = args.do_sample, top_p = args.top_p, temperature = args.temperature, use_cache = args.use_cache, top_k = args.top_k,
-                repetition_penalty = args.repetition_penalty, length_penalty = args.length_penalty)
+                repetition_penalty = args.repetition_penalty, length_penalty = args.length_penalty,
+                model_name_or_path = model_config.model_name_or_path,
+                output_distribution_steps = args.output_distribution_steps,
+                save_output_distribution_dir = args.save_output_distribution_dir,
+                prefill_prefix = args.prefill_prefix)

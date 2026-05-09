@@ -3,12 +3,20 @@ from .chatgpt_judge import ChatgptEvaluator
 from finetuning_buckets.datasets.utils import get_eval_data
 from finetuning_buckets.inference import chat
 import json
+import os
+import re
+from pathlib import Path
+
+import numpy as np
 from tqdm import tqdm
 
 from accelerate import Accelerator
 from torch.utils.data import DataLoader, Dataset
 from accelerate.state import PartialState
 import torch
+
+
+DEFAULT_OUTPUT_DISTRIBUTION_DIR = Path("logs/output_distribution")
 
 class MyDataset(Dataset):
     def __init__(self, data_list):
@@ -18,7 +26,7 @@ class MyDataset(Dataset):
         return len(self.data_list)
     
     def __getitem__(self, idx):
-        return self.data_list[idx]
+        return idx, self.data_list[idx]
 
 from torch.utils.data._utils.collate import default_collate
 
@@ -54,6 +62,35 @@ common_eval_template = {
 }
 
 
+def slugify_filename_part(value):
+    slug = re.sub(r"[^A-Za-z0-9._-]+", "_", value).strip("_")
+    return slug or "run"
+
+
+def build_output_distribution_paths(
+    model_name_or_path,
+    bench,
+    num_prefix_tokens,
+    tracked_output_steps,
+    output_dir,
+    prefill_prefix=None,
+):
+    output_dir = Path(output_dir or DEFAULT_OUTPUT_DISTRIBUTION_DIR)
+    model_name = slugify_filename_part(str(model_name_or_path).replace("/", "__"))
+    bench_name = slugify_filename_part(bench)
+    if prefill_prefix is not None:
+        prefix_spec = f"prefill_{slugify_filename_part(prefill_prefix)[:80]}"
+    else:
+        prefix_spec = f"prefix{num_prefix_tokens}"
+    step_spec = f"output_tokens_1-{tracked_output_steps}"
+    base_name = f"{model_name}__{bench_name}__{prefix_spec}__{step_spec}"
+    return {
+        "token_distributions": output_dir / f"{base_name}__token_distributions.npy",
+        "generated_token_ids": output_dir / f"{base_name}__generated_token_ids.npy",
+        "metadata": output_dir / f"{base_name}__metadata.json",
+    }
+
+
 
 def key_word_asr(results):
     
@@ -83,7 +120,7 @@ def chatgpt_asr(questions, results):
     for i, item in enumerate(results):
         QA_pairs.append((questions[i], item[-1]['content']))
     
-    scores, _ = ChatgptEvaluator.duo_judge(QA_pairs)
+    scores = ChatgptEvaluator.duo_judge(QA_pairs)
 
     for i, score in enumerate(scores):
         tot_scores += score
@@ -101,15 +138,23 @@ def chatgpt_asr(questions, results):
         'avg_score' : avg_score
     }
 
+    return metric
+
 
 def eval_safety_in_batch(model, prompt_style, tokenizer, num_prefix_tokens = 0, save_path = None, batch_size_per_device = 16,
                 bench = 'hex-phi', evaluator = 'key_word',
                 system_prompt = None, input_template = None, output_header = None, 
                 max_new_tokens = 512, 
                 do_sample = True, top_p = 0.9, temperature = 0.6, use_cache = True, top_k = 50,
-                repetition_penalty = 1.0, length_penalty = 1.0, **kwargs):
+                repetition_penalty = 1.0, length_penalty = 1.0,
+                model_name_or_path = None, output_distribution_steps = 0,
+                save_output_distribution_dir = DEFAULT_OUTPUT_DISTRIBUTION_DIR,
+                prefill_prefix = None, **kwargs):
     
     accelerator = Accelerator()
+
+    if output_distribution_steps < 0:
+        raise ValueError("output_distribution_steps must be non-negative")
 
     with PartialState().local_main_process_first():
 
@@ -151,18 +196,54 @@ def eval_safety_in_batch(model, prompt_style, tokenizer, num_prefix_tokens = 0, 
 
     results = []
     cnt = 0
+    output_distribution_store = {}
+    tracked_steps_observed = 0
 
     for batch in tqdm(data_loader):
     
        
        with torch.inference_mode():
             
-            batch_input_sample = batch
+            batch_indices = [item[0] for item in batch]
+            batch_input_sample = [item[1] for item in batch]
 
-            output_texts, full_texts = Generator.generate_one_shot_in_batch(inputs = batch_input_sample, accelerator = accelerator,
+            generation_outputs = Generator.generate_one_shot_in_batch(inputs = batch_input_sample, accelerator = accelerator,
                                             max_new_tokens = max_new_tokens, do_sample = do_sample, top_p = top_p, temperature = temperature, 
                                             use_cache = use_cache, top_k = top_k, repetition_penalty = repetition_penalty, 
-                                            length_penalty = length_penalty, **kwargs)
+                                            length_penalty = length_penalty,
+                                            k = output_distribution_steps if output_distribution_steps > 0 else None,
+                                            **kwargs)
+
+            if output_distribution_steps > 0:
+                output_texts = generation_outputs['output_texts']
+                full_texts = generation_outputs['full_texts']
+                tracked_steps = generation_outputs['tracked_steps']
+                tracked_steps_observed = max(tracked_steps_observed, tracked_steps)
+
+                batch_indices_tensor = torch.tensor(batch_indices, dtype=torch.long, device=accelerator.device)
+                gathered_indices, gathered_generated_token_ids, gathered_token_distributions = accelerator.gather_for_metrics(
+                    (
+                        batch_indices_tensor,
+                        generation_outputs['generated_token_ids'].to(accelerator.device),
+                        generation_outputs['token_distributions'].to(accelerator.device),
+                    )
+                )
+
+                if accelerator.is_local_main_process:
+                    gathered_indices = gathered_indices.cpu().tolist()
+                    gathered_generated_token_ids = gathered_generated_token_ids.cpu().numpy()
+                    gathered_token_distributions = gathered_token_distributions.cpu().numpy()
+                    for sample_idx, generated_token_ids, token_distributions in zip(
+                        gathered_indices,
+                        gathered_generated_token_ids,
+                        gathered_token_distributions,
+                    ):
+                        output_distribution_store[int(sample_idx)] = {
+                            'generated_token_ids': generated_token_ids,
+                            'token_distributions': token_distributions,
+                        }
+            else:
+                output_texts, full_texts = generation_outputs
 
             accelerator.wait_for_everyone()
 
@@ -250,10 +331,56 @@ def eval_safety_in_batch(model, prompt_style, tokenizer, num_prefix_tokens = 0, 
             'metrics' : metric
         }
 
+        if output_distribution_steps > 0 and output_distribution_store:
+            vocab_size = next(iter(output_distribution_store.values()))['token_distributions'].shape[-1]
+            token_distribution_array = np.full(
+                (len(dataset), output_distribution_steps, vocab_size),
+                np.nan,
+                dtype=np.float32,
+            )
+            generated_token_ids_array = np.full(
+                (len(dataset), output_distribution_steps),
+                -1,
+                dtype=np.int64,
+            )
+
+            for sample_idx, tracked_output in output_distribution_store.items():
+                current_distributions = tracked_output['token_distributions']
+                current_token_ids = tracked_output['generated_token_ids']
+                current_steps = min(output_distribution_steps, current_distributions.shape[0])
+                token_distribution_array[sample_idx, :current_steps, :] = current_distributions[:current_steps]
+                generated_token_ids_array[sample_idx, :current_steps] = current_token_ids[:current_steps]
+
+            output_distribution_paths = build_output_distribution_paths(
+                model_name_or_path=model_name_or_path,
+                bench=bench,
+                num_prefix_tokens=num_prefix_tokens,
+                tracked_output_steps=output_distribution_steps,
+                output_dir=save_output_distribution_dir,
+                prefill_prefix=prefill_prefix,
+            )
+            output_distribution_paths['token_distributions'].parent.mkdir(parents=True, exist_ok=True)
+            np.save(output_distribution_paths['token_distributions'], token_distribution_array)
+            np.save(output_distribution_paths['generated_token_ids'], generated_token_ids_array)
+
+            metadata = {
+                'model_name_or_path': model_name_or_path,
+                'bench': bench,
+                'num_prefix_tokens': num_prefix_tokens,
+                'prefill_prefix': prefill_prefix,
+                'tracked_output_steps': output_distribution_steps,
+                'tracked_steps_observed': tracked_steps_observed,
+                'token_distributions_path': str(output_distribution_paths['token_distributions']),
+                'generated_token_ids_path': str(output_distribution_paths['generated_token_ids']),
+            }
+            with open(output_distribution_paths['metadata'], 'w') as f:
+                json.dump(metadata, f)
+
+            log['output_distribution'] = metadata
+
         print(metric)
 
         if save_path is not None:
-            import os
             os.makedirs(os.path.dirname(save_path), exist_ok=True)
             with open(save_path, 'w') as f:
                 json.dump(log, f)

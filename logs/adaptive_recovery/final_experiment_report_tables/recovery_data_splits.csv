@@ -1,0 +1,7 @@
+dataset,split,rows,instructions,adaptive_rows,static_rows
+adaptive-only recovery data,train,471,112,,
+adaptive-only recovery data,dev,57,14,,
+adaptive-only recovery data,test,186,37,,
+mixed 50/50 recovery data,train,942,112,471,471
+mixed 50/50 recovery data,dev,114,14,57,57
+mixed 50/50 recovery data,test,372,37,186,186

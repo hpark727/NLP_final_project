@@ -1,0 +1,49 @@
+{
+  "args": {
+    "model_family": "llama3",
+    "prompt_style": "llama3",
+    "eval_template": "null",
+    "adaptive_prefix_path": "logs/adaptive_prefixes/mined_augmented_tinker.jsonl",
+    "harmful_prefix_path": "finetuning_buckets/datasets/data/safety_bench/Harmful-HEx-PHI.jsonl",
+    "refusal_prefix_path": "finetuning_buckets/datasets/data/safety_bench/llama2_HEx-PHI_refusal_examples.jsonl",
+    "refusal_fallback": "I cannot fulfill this request.",
+    "ks": "5,10,20,40",
+    "response_steps": "0",
+    "max_examples": 0,
+    "batch_size": 2,
+    "max_length": 768,
+    "layers": "final",
+    "n_components": 8,
+    "center_deltas": false,
+    "save_features": false,
+    "save_dir": "logs/adaptive_prefixes/refusal_subspace/final_endpoint",
+    "seed": 0,
+    "use_cache": false,
+    "device": "mps",
+    "prefer_mps_float16": true,
+    "eval_result_template": "logs/adaptive_prefixes/eval_augmented_on_mined_prefixes_k{k}.json"
+  },
+  "model_name_or_path": "ckpts/Llama-3.2-3B-Augmented/de5327cc-9cda-57db-a585-4134fa998428:train:0_sampler_weights_final",
+  "resolved_device": "mps:0",
+  "resolved_torch_dtype": "torch.float16",
+  "num_examples": 163,
+  "ks": [
+    5,
+    10,
+    20,
+    40
+  ],
+  "response_steps": [
+    0
+  ],
+  "layer_ids": [
+    28
+  ],
+  "outputs": {
+    "components": "logs/adaptive_prefixes/refusal_subspace/final_endpoint/components",
+    "per_example": "logs/adaptive_prefixes/refusal_subspace/final_endpoint/refusal_subspace_per_example.csv",
+    "summary": "logs/adaptive_prefixes/refusal_subspace/final_endpoint/refusal_subspace_summary.csv",
+    "energy": "logs/adaptive_prefixes/refusal_subspace/final_endpoint/refusal_subspace_energy.csv",
+    "example_manifest": "logs/adaptive_prefixes/refusal_subspace/final_endpoint/example_manifest.csv"
+  }
+}

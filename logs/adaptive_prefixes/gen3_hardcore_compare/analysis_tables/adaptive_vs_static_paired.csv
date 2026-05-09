@@ -1,0 +1,16 @@
+length,comparison,both,adaptive_only,static_only,neither,mcnemar_exact_p
+k5,gen1_vs_static,0,0,7,16,0.015625
+k5,gen2_vs_static,0,0,7,16,0.015625
+k5,gen3_vs_static,0,0,7,16,0.015625
+k10,gen1_vs_static,2,5,3,13,0.7265625
+k10,gen2_vs_static,1,1,4,17,0.375
+k10,gen3_vs_static,0,0,5,18,0.0625
+k20,gen1_vs_static,2,9,2,10,0.0654296875
+k20,gen2_vs_static,2,9,2,10,0.0654296875
+k20,gen3_vs_static,1,5,3,14,0.7265625
+k40,gen1_vs_static,4,8,0,11,0.0078125
+k40,gen2_vs_static,2,9,2,10,0.0654296875
+k40,gen3_vs_static,3,6,1,13,0.125
+full,gen1_vs_static,3,10,1,9,0.01171875
+full,gen2_vs_static,1,12,3,7,0.03515625
+full,gen3_vs_static,3,11,1,8,0.00634765625

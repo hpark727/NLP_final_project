@@ -44,6 +44,14 @@ class Chat:
                 self.string_formatter = self._string_formatter_completion_only_llama3_base
             self.default_system_prompt = default_system_prompt
             self.stopping_criteria = None
+        elif prompt_style == 'qwen':
+            from finetuning_buckets.models.model_families.qwen import QwenStringConverter, default_system_prompt
+            if getattr(tokenizer, "chat_template", None):
+                self.string_formatter = self._string_formatter_completion_only_qwen
+            else:
+                self.string_formatter = QwenStringConverter.string_formatter_completion_only
+            self.default_system_prompt = default_system_prompt
+            self.stopping_criteria = None
         else:
             raise ValueError(f"Prompt style {prompt_style} not supported")
 
@@ -152,6 +160,30 @@ class Chat:
 
         parts.append(f"Assistant: {messages[-1]['content']}")
         return {'text': ''.join(parts)}
+
+    def _string_formatter_completion_only_qwen(self, example):
+        if 'messages' not in example:
+            raise ValueError("No messages in the example")
+
+        messages = example['messages']
+        if len(messages) == 0:
+            raise ValueError("No messages in the example")
+        if messages[-1]['role'] != 'assistant':
+            raise ValueError("completion only mode should end with a header of assistant message")
+
+        prompt_messages = messages[:-1]
+        assistant_prefix = messages[-1]['content']
+
+        if prompt_messages and prompt_messages[0]['role'] == 'system' and prompt_messages[0]['content'] == "":
+            prompt_messages = prompt_messages[1:]
+
+        rendered_prompt = self.tokenizer.apply_chat_template(
+            prompt_messages,
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+
+        return {'text': rendered_prompt + assistant_prefix}
 
     def __call__(self, text, max_new_tokens=1024,
                  do_sample=True, top_p=0.9, temperature=0.6, use_cache=True, top_k=50,

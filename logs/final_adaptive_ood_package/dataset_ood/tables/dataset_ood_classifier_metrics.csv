@@ -1,0 +1,4 @@
+model,text_col,accuracy,auc,n,feature_count
+prompt_tfidf,prompt_text,0.8818181818181818,0.9488659320477503,660,
+prompt_plus_prefix_tfidf,combined_text,0.9712121212121212,0.9949954086317723,660,
+surface_features,,0.9454545454545454,0.9843617998163453,660,16.0

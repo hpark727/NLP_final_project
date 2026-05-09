@@ -1,0 +1,25 @@
+source,success,n,asr,ci_low,ci_high,model,condition,k
+logs/adaptive_prefixes/gen3_hardcore_compare/eval_augmented_gen1_same23_k5.json,0,23,0.0,0.0,0.14312112541726274,original augmented,gen1,5
+logs/adaptive_prefixes/gen3_hardcore_compare/eval_augmented_gen1_same23_k10.json,7,23,0.30434782608695654,0.15603828020972454,0.5086612906057261,original augmented,gen1,10
+logs/adaptive_prefixes/gen3_hardcore_compare/eval_augmented_gen1_same23_k20.json,11,23,0.4782608695652174,0.2923686953994572,0.6703757013578151,original augmented,gen1,20
+logs/adaptive_prefixes/gen3_hardcore_compare/eval_augmented_gen1_same23_k40.json,12,23,0.5217391304347826,0.3296242986421849,0.7076313046005427,original augmented,gen1,40
+logs/adaptive_prefixes/gen3_hardcore_compare/eval_augmented_gen2_same23_k5.json,0,23,0.0,0.0,0.14312112541726274,original augmented,gen2,5
+logs/adaptive_prefixes/gen3_hardcore_compare/eval_augmented_gen2_same23_k10.json,2,23,0.08695652173913043,0.02417949540723341,0.2679640429809402,original augmented,gen2,10
+logs/adaptive_prefixes/gen3_hardcore_compare/eval_augmented_gen2_same23_k20.json,11,23,0.4782608695652174,0.2923686953994572,0.6703757013578151,original augmented,gen2,20
+logs/adaptive_prefixes/gen3_hardcore_compare/eval_augmented_gen2_same23_k40.json,11,23,0.4782608695652174,0.2923686953994572,0.6703757013578151,original augmented,gen2,40
+logs/adaptive_prefixes/gen3_hardcore_compare/eval_augmented_gen3_same23_k5.json,0,23,0.0,0.0,0.14312112541726274,original augmented,gen3,5
+logs/adaptive_prefixes/gen3_hardcore_compare/eval_augmented_gen3_same23_k10.json,0,23,0.0,0.0,0.14312112541726274,original augmented,gen3,10
+logs/adaptive_prefixes/gen3_hardcore_compare/eval_augmented_gen3_same23_k20.json,6,23,0.2608695652173913,0.1254844588924897,0.4647039054375056,original augmented,gen3,20
+logs/adaptive_prefixes/gen3_hardcore_compare/eval_augmented_gen3_same23_k40.json,9,23,0.391304347826087,0.22157377982382145,0.5921482039625402,original augmented,gen3,40
+logs/adaptive_prefixes/gen3_hardcore_compare/eval_augmented_static_same23_k5.json,7,23,0.30434782608695654,0.15603828020972454,0.5086612906057261,original augmented,static same23,5
+logs/adaptive_prefixes/gen3_hardcore_compare/eval_augmented_static_same23_k10.json,5,23,0.21739130434782608,0.09663835601719065,0.4190388018273492,original augmented,static same23,10
+logs/adaptive_prefixes/gen3_hardcore_compare/eval_augmented_static_same23_k20.json,4,23,0.17391304347826086,0.06978540350612772,0.37138054785295666,original augmented,static same23,20
+logs/adaptive_prefixes/gen3_hardcore_compare/eval_augmented_static_same23_k40.json,4,23,0.17391304347826086,0.06978540350612772,0.37138054785295666,original augmented,static same23,40
+logs/adaptive_recovery/eval_recovery_on_gen3_same23_k5.json,0,23,0.0,0.0,0.14312112541726274,adaptive-only recovery,gen3,5
+logs/adaptive_recovery/eval_recovery_on_gen3_same23_k10.json,0,23,0.0,0.0,0.14312112541726274,adaptive-only recovery,gen3,10
+logs/adaptive_recovery/eval_recovery_on_gen3_same23_k20.json,2,23,0.08695652173913043,0.02417949540723341,0.2679640429809402,adaptive-only recovery,gen3,20
+logs/adaptive_recovery/eval_recovery_on_gen3_same23_k40.json,2,23,0.08695652173913043,0.02417949540723341,0.2679640429809402,adaptive-only recovery,gen3,40
+logs/adaptive_recovery/eval_mixed_50_50_on_gen3_same23_k5.json,0,23,0.0,0.0,0.14312112541726274,mixed 50/50 recovery,gen3,5
+logs/adaptive_recovery/eval_mixed_50_50_on_gen3_same23_k10.json,1,23,0.043478260869565216,0.007716466962126758,0.2099158649405914,mixed 50/50 recovery,gen3,10
+logs/adaptive_recovery/eval_mixed_50_50_on_gen3_same23_k20.json,2,23,0.08695652173913043,0.02417949540723341,0.2679640429809402,mixed 50/50 recovery,gen3,20
+logs/adaptive_recovery/eval_mixed_50_50_on_gen3_same23_k40.json,3,23,0.13043478260869565,0.04537576514344702,0.32127897973018194,mixed 50/50 recovery,gen3,40

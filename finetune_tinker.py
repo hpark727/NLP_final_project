@@ -15,6 +15,10 @@ ANCHOR_PATH = Path(
 )
 ENV_PATH = Path(".env")
 
+
+def log(message: str) -> None:
+    print(message, flush=True)
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -51,6 +55,45 @@ def parse_args() -> argparse.Namespace:
         "--log_path",
         default="logs/tinker_finetune",
         help="Directory for local checkpoint metadata written by Tinker checkpoint utils.",
+    )
+    parser.add_argument(
+        "--load_state_path",
+        default=None,
+        help=(
+            "Optional Tinker training state path to load before training. "
+            "Use this for true continued LoRA training across curriculum iterations."
+        ),
+    )
+    parser.add_argument(
+        "--load_optimizer_state",
+        action="store_true",
+        help="When --load_state_path is set, also restore optimizer state.",
+    )
+    parser.add_argument(
+        "--safety_data_path",
+        default=str(DATA_AUG_PATH),
+        help=(
+            "JSONL safety-recovery data. Rows need instruction/refusal and either harmful "
+            "or the field named by --augmentation_prefix_field."
+        ),
+    )
+    parser.add_argument(
+        "--augmentation_prefix_field",
+        default=None,
+        help=(
+            "Optional field containing an already-mined assistant prefix. When omitted, "
+            "the trainer samples from each row's `harmful` field as in the original setup."
+        ),
+    )
+    parser.add_argument(
+        "--augmentation_prefix_tokens",
+        type=int,
+        default=0,
+        help=(
+            "If >0 with --augmentation_prefix_field, truncate every custom prefix to this "
+            "many tokenizer tokens. Otherwise a row-level `prefix_token_budget` is honored "
+            "when present, and full custom prefixes are used as a fallback."
+        ),
     )
     parser.add_argument(
         "--augment_probability",
@@ -196,23 +239,45 @@ def build_augmented_datum(
     rng: random.Random,
     datum_from_model_input_weights,
     weight_scale: float = 1.0,
+    augmentation_prefix_field: str | None = None,
+    augmentation_prefix_tokens: int = 0,
 ):
-    harmful_tokens = tokenizer.encode(str(example["harmful"]), add_special_tokens=False)
-    if not harmful_tokens:
+    if augmentation_prefix_field is None:
+        if "harmful" not in example:
+            return None
+        prefix_tokens = tokenizer.encode(str(example["harmful"]), add_special_tokens=False)
+        if not prefix_tokens:
+            return None
+        cutoff = rng.randint(1, min(len(prefix_tokens), max_harmful_prefix_tokens))
+    else:
+        if augmentation_prefix_field not in example:
+            return None
+        prefix_tokens = tokenizer.encode(str(example[augmentation_prefix_field]), add_special_tokens=False)
+        if not prefix_tokens:
+            return None
+        if augmentation_prefix_tokens > 0:
+            cutoff = min(len(prefix_tokens), augmentation_prefix_tokens)
+        elif isinstance(example.get("prefix_token_budget"), int) and example["prefix_token_budget"] > 0:
+            cutoff = min(len(prefix_tokens), int(example["prefix_token_budget"]))
+        elif max_harmful_prefix_tokens > 0:
+            cutoff = min(len(prefix_tokens), max_harmful_prefix_tokens)
+        else:
+            cutoff = len(prefix_tokens)
+
+    if cutoff <= 0:
         return None
 
-    cutoff = rng.randint(1, min(len(harmful_tokens), max_harmful_prefix_tokens))
-    harmful_prefix_tokens = harmful_tokens[:cutoff]
-    harmful_prefix = tokenizer.decode(harmful_prefix_tokens)
+    prefix_tokens = prefix_tokens[:cutoff]
+    unsafe_prefix = tokenizer.decode(prefix_tokens)
 
     messages = [
         {"role": "user", "content": build_user_text(example)},
-        {"role": "assistant", "content": harmful_prefix + str(example["refusal"])},
+        {"role": "assistant", "content": unsafe_prefix + str(example["refusal"])},
     ]
 
     model_input, weights = renderer.build_supervised_example(messages)
     positive_weight_positions = weights.nonzero().flatten()
-    prefix_token_count = len(harmful_prefix_tokens)
+    prefix_token_count = len(prefix_tokens)
 
     if prefix_token_count > 0 and len(positive_weight_positions) >= prefix_token_count:
         weights[positive_weight_positions[:prefix_token_count]] = 0.0
@@ -229,6 +294,7 @@ def build_augmented_datum(
 
 def main() -> None:
     args = parse_args()
+    log("Starting Tinker fine-tune setup.")
     load_dotenv_if_available()
     (
         tinker,
@@ -245,29 +311,53 @@ def main() -> None:
         raise SystemExit(
             "TINKER_API_KEY is not set. Put it in `.env` or export it in your shell before running."
         )
+    if Path(args.model_name).exists():
+        raise SystemExit(
+            "--model_name must be a Tinker base model identifier such as "
+            "`Qwen/Qwen3-4B-Instruct-2507`, not a local ckpts/ path."
+        )
 
 
     rng = random.Random(args.seed)
 
-    if not DATA_AUG_PATH.exists():
-        raise SystemExit(f"Missing augmentation dataset: {DATA_AUG_PATH}")
+    safety_data_path = Path(args.safety_data_path)
+    if not safety_data_path.exists():
+        raise SystemExit(f"Missing augmentation dataset: {safety_data_path}")
     if (not args.disable_anchor) and (not ANCHOR_PATH.exists()):
         raise SystemExit(f"Missing anchor dataset: {ANCHOR_PATH}")
     if not (0.0 < args.alpha <= 1.0):
         raise SystemExit("--alpha must be in the interval (0, 1].")
 
-    train_rows = load_jsonl(DATA_AUG_PATH)
+    log(f"Loading safety data from: {safety_data_path}")
+    train_rows = load_jsonl(safety_data_path)
+    log(f"Loaded safety rows: {len(train_rows)}")
+    if args.disable_anchor:
+        log("Anchor batch disabled.")
+    else:
+        log(f"Loading anchor data from: {ANCHOR_PATH}")
     anchor_rows = [] if args.disable_anchor else load_json(ANCHOR_PATH)
+    log(f"Loaded anchor rows: {len(anchor_rows)}")
 
+    log(f"Loading tokenizer for: {args.model_name}")
     tokenizer = get_tokenizer(args.model_name)
     renderer_name = args.renderer_name or model_info.get_recommended_renderer_name(args.model_name)
+    log(f"Using renderer: {renderer_name}")
     renderer = renderers.get_renderer(renderer_name, tokenizer, model_name=args.model_name)
 
+    log(f"Creating Tinker LoRA training client for: {args.model_name}")
     service_client = tinker.ServiceClient(base_url=args.base_url)
     training_client = service_client.create_lora_training_client(
         base_model=args.model_name,
         rank=args.lora_rank,
     )
+    log("Created Tinker LoRA training client.")
+    if args.load_state_path is not None:
+        log(f"Loading training state from: {args.load_state_path}")
+        if args.load_optimizer_state:
+            training_client.load_state_with_optimizer(args.load_state_path).result()
+        else:
+            training_client.load_state(args.load_state_path).result()
+        log("Loaded training state.")
 
     steps_per_epoch = len(train_rows) // args.batch_size
     if steps_per_epoch == 0:
@@ -295,15 +385,14 @@ def main() -> None:
             )
         )
 
-    print(f"Using renderer: {renderer_name}")
-    print(f"Training rows: {len(train_rows)}")
-    print(f"Anchor rows: {len(anchor_rows)}")
-    print(f"Steps per epoch: {steps_per_epoch}")
-    print(f"Alpha: {args.alpha}")
-    print(f"Anchor batch size: {anchor_batch_size}")
-    print(f"Per-safety-example weight: {safety_example_weight}")
-    print(f"Per-anchor-example weight: {anchor_example_weight}")
-    print(f"Effective alpha this batching implements: {effective_alpha}")
+    log(f"Training rows: {len(train_rows)}")
+    log(f"Anchor rows: {len(anchor_rows)}")
+    log(f"Steps per epoch: {steps_per_epoch}")
+    log(f"Alpha: {args.alpha}")
+    log(f"Anchor batch size: {anchor_batch_size}")
+    log(f"Per-safety-example weight: {safety_example_weight}")
+    log(f"Per-anchor-example weight: {anchor_example_weight}")
+    log(f"Effective alpha this batching implements: {effective_alpha}")
 
     global_step = 0
     for epoch in range(args.num_epochs):
@@ -325,11 +414,13 @@ def main() -> None:
                         renderer,
                         tokenizer,
                         args.max_length,
-                            args.max_harmful_prefix_tokens,
-                            rng,
-                            datum_from_model_input_weights,
-                            weight_scale=safety_example_weight,
-                        )
+                        args.max_harmful_prefix_tokens,
+                        rng,
+                        datum_from_model_input_weights,
+                        weight_scale=safety_example_weight,
+                        augmentation_prefix_field=args.augmentation_prefix_field,
+                        augmentation_prefix_tokens=args.augmentation_prefix_tokens,
+                    )
                     if datum is None:
                         datum = build_mean_reduction_datum(
                             build_refusal_messages(example),
@@ -368,6 +459,13 @@ def main() -> None:
                 eps=1e-8,
             )
 
+            if (global_step % args.log_every) == 0:
+                log(
+                    "Submitting training step "
+                    f"{global_step} (epoch {epoch}, batch {batch_idx + 1}/{steps_per_epoch}, "
+                    f"sequences={len(batch)}, tokens={sum(d.model_input.length for d in batch)})"
+                )
+
             fwd_bwd_future = training_client.forward_backward(batch, loss_fn="cross_entropy")
             optim_future = training_client.optim_step(adam_params)
 
@@ -387,11 +485,13 @@ def main() -> None:
                     num_tokens=sum(d.model_input.length for d in batch),
                     time_total=time.time() - start_time,
                 )
-                print(json.dumps(metrics))
+                log(json.dumps(metrics))
 
             global_step += 1
 
-    print("Training loop finished.")
+    log("Training loop finished.")
+    Path(args.log_path).mkdir(parents=True, exist_ok=True)
+    log(f"Saving final checkpoint under: {args.log_path}")
     checkpoint_paths = checkpoint_utils.save_checkpoint(
         training_client=training_client,
         name="final",
@@ -400,8 +500,8 @@ def main() -> None:
         loop_state={"step": global_step, "epoch": args.num_epochs},
         ttl_seconds=None,
     )
-    print("Saved checkpoint paths:")
-    print(json.dumps(checkpoint_paths, indent=2))
+    log("Saved checkpoint paths:")
+    log(json.dumps(checkpoint_paths, indent=2))
 
 
 if __name__ == "__main__":

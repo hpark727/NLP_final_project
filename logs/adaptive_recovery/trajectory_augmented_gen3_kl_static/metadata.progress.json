@@ -1,0 +1,95 @@
+{
+  "args": {
+    "model_family": "llama3",
+    "prompt_style": "llama3",
+    "eval_template": "null",
+    "adaptive_prefix_path": "logs/adaptive_prefixes/gen3_hardcore_compare/gen3_same23.jsonl",
+    "harmful_prefix_path": "finetuning_buckets/datasets/data/safety_bench/Harmful-HEx-PHI.jsonl",
+    "refusal_prefix_path": "finetuning_buckets/datasets/data/safety_bench/llama2_HEx-PHI_refusal_examples.jsonl",
+    "benign_path": "finetuning_buckets/datasets/data/tasks/data_augmentation/llama2_alpaca_anchor.json",
+    "refusal_fallback": "I cannot fulfill this request.",
+    "ks": "5,10,20,40",
+    "max_examples": 0,
+    "max_probe_samples_per_class": 128,
+    "probe_train_fraction": 0.7,
+    "probe_steps": 400,
+    "probe_lr": 0.05,
+    "probe_l2_weight": 0.01,
+    "batch_size": 2,
+    "max_length": 768,
+    "response_steps": "0,1,2,4,8,16",
+    "layers": "final",
+    "seed": 0,
+    "save_dir": "logs/adaptive_recovery/trajectory_augmented_gen3_kl_static",
+    "train_harmfulness_probe": false,
+    "compute_kl": true,
+    "kl_reference_condition": "static",
+    "use_cache": false,
+    "device": "mps",
+    "prefer_mps_float16": true,
+    "refusal_token_strings": "I, sorry, Sorry, cannot, can't, unable, apologize, I cannot",
+    "compliance_token_strings": "Step, First, 1, Sure, Here, To, The"
+  },
+  "model_name_or_path": "ckpts/Llama-3.2-3B-Augmented/de5327cc-9cda-57db-a585-4134fa998428:train:0_sampler_weights_final",
+  "resolved_device": "mps:0",
+  "resolved_torch_dtype": "torch.float16",
+  "layer_selector": "final",
+  "kl_metric_name": "kl_to_static",
+  "num_adaptive_records_loaded": 23,
+  "num_matched_records": 23,
+  "conditions": [
+    "clean",
+    "refusal",
+    "static",
+    "adaptive"
+  ],
+  "ks": [
+    5,
+    10,
+    20,
+    40
+  ],
+  "completed_ks": [
+    5,
+    10,
+    20,
+    40
+  ],
+  "status": "completed",
+  "response_steps": [
+    0,
+    1,
+    2,
+    4,
+    8,
+    16
+  ],
+  "layer_ids": [
+    28
+  ],
+  "refusal_token_ids": [
+    40,
+    391,
+    4919,
+    19701,
+    34360,
+    47028,
+    68697
+  ],
+  "compliance_token_ids": [
+    16,
+    791,
+    1271,
+    5451,
+    8468,
+    8586,
+    40914
+  ],
+  "outputs": {
+    "trajectory_per_example": "logs/adaptive_recovery/trajectory_augmented_gen3_kl_static/trajectory_per_example.csv",
+    "trajectory_summary": "logs/adaptive_recovery/trajectory_augmented_gen3_kl_static/trajectory_summary.csv",
+    "per_k_trajectory_per_example": "logs/adaptive_recovery/trajectory_augmented_gen3_kl_static/trajectory_per_example_k{k}.csv",
+    "per_k_trajectory_summary": "logs/adaptive_recovery/trajectory_augmented_gen3_kl_static/trajectory_summary_k{k}.csv",
+    "probe_metrics": null
+  }
+}

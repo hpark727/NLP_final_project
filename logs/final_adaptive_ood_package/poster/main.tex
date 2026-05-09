@@ -1,0 +1,443 @@
+\documentclass[final]{beamer}
+
+\usepackage[scale=1.24]{beamerposter} % Use the beamerposter package for laying out the poster
+\usepackage{hyperref}
+\usepackage[font=small]{caption}
+\usepackage[position=top]{subcaption}
+\usepackage{graphicx}
+\usepackage[export]{adjustbox}
+
+\definecolor{cbblue}{rgb}{0.00392156862745098, 0.45098039215686275, 0.6980392156862745}
+\definecolor{cbbrown}{rgb}{0.8705882352941177, 0.5607843137254902, 0.0196078431372549}
+\definecolor{cbgreen}{rgb}{0.00784313725490196, 0.6196078431372549, 0.45098039215686275}
+\definecolor{cbred}{rgb}{0.8352941176470589, 0.3686274509803922, 0.0}
+
+
+
+\usetheme{confposter} % Use the confposter theme supplied with this template
+
+\setbeamercolor{block title}{fg=black,bg=white} % Colors of the block titles
+\setbeamercolor{block body}{fg=black,bg=white} % Colors of the body of blocks
+\setbeamercolor{block alerted title}{fg=white,bg=dblue!70} % Colors of the highlighted block titles
+\setbeamercolor{block alerted body}{fg=black,bg=dblue!10} % Colors of the body of highlighted blocks
+% Many more colors are available for use in beamerthemeconfposter.sty
+
+%-----------------------------------------------------------
+% Define the column widths and overall poster size
+% To set effective sepwid, onecolwid and twocolwid values, first choose how many columns you want and how much separation you want between columns
+% In this template, the separation width chosen is 0.024 of the paper width and a 4-column layout
+% onecolwid should therefore be (1-(# of columns+1)*sepwid)/# of columns e.g. (1-(4+1)*0.024)/4 = 0.22
+% Set twocolwid to be (2*onecolwid)+sepwid = 0.464
+% Set threecolwid to be (3*onecolwid)+2*sepwid = 0.708
+
+\newlength{\sepwid}
+\newlength{\onecolwid}
+\newlength{\twocolwid}
+\newlength{\threecolwid}
+\setlength{\paperwidth}{48in} % A0 width: 46.8in
+\setlength{\paperheight}{36in} % A0 height: 33.1in
+\setlength{\sepwid}{0.024\paperwidth} % Separation width (white space) between columns
+\setlength{\onecolwid}{0.22\paperwidth} % Width of one column
+\setlength{\twocolwid}{0.464\paperwidth} % Width of two columns
+\setlength{\threecolwid}{0.708\paperwidth} % Width of three columns
+\setlength{\topmargin}{-0.8in} % Reduce the top margin size
+%-----------------------------------------------------------
+
+\usepackage{graphicx}  % Required for including images
+\usepackage{booktabs} % Top and bottom rules for tables
+\usepackage{tikz}    
+\usepackage{setspace}
+
+
+% ------------
+\usepackage{amsmath}
+\usepackage{calc}
+\newlength{\depthofsumsign}
+\setlength{\depthofsumsign}{\depthof{$\sum$}}
+\newlength{\totalheightofsumsign}
+\newlength{\heightanddepthofargument}
+
+\newcommand{\nsum}[1][1.4]{% only for \displaystyle
+    \mathop{%
+        \raisebox
+            {-#1\depthofsumsign+1\depthofsumsign}
+            {\scalebox
+                {#1}
+                {$\displaystyle\sum$}%
+            }
+    }
+}
+\newcommand{\resum}[1]{%
+    \def\s{#1}
+    \mathop{
+        \mathpalette\resumaux{#1}
+    }
+}
+
+\newcommand{\resumaux}[2]{% internally
+    \sbox0{$#1#2$}
+    \sbox1{$#1\sum$}
+    \setlength{\heightanddepthofargument}{\wd0+\dp0}
+    \setlength{\totalheightofsumsign}{\wd1+\dp1}
+    \def\quot{\DivideLengths{\heightanddepthofargument}{\totalheightofsumsign}}
+    \nsum[\quot]%
+}
+
+% http://tex.stackexchange.com/a/6424/16595
+\makeatletter
+\newcommand*{\DivideLengths}[2]{%
+  \strip@pt\dimexpr\number\numexpr\number\dimexpr#1\relax*65536/\number\dimexpr#2\relax\relax sp\relax
+}
+\makeatother
+
+
+%----------------------------------------------------------------------------------------
+%	TITLE SECTION 
+%----------------------------------------------------------------------------------------
+
+\title{Optimal Timing for Episodic Retrieval and Encoding for Event Understanding}
+
+\author{
+Qihong Lu$^{1}$, 
+Zi Ying Fan$^{2}$, 
+Uri Hasson$^{1}$, 
+Kenneth A. Norman$^{1}$
+} % Author(s)
+
+\institute{
+1. Department of Psychology and Princeton Neuroscience Institute, Princeton University; 2. Department of Computer Science, Princeton University
+} 
+
+%----------------------------------------------------------------------------------------
+
+\begin{document}
+
+
+\addtobeamertemplate{block end}{}{\vspace*{1ex}} % White space under blocks
+\addtobeamertemplate{block alerted end}{}{\vspace*{2ex}} % White space under highlighted (alert) blocks
+
+\setlength{\belowcaptionskip}{1ex} % White space under figures
+\setlength\belowdisplayshortskip{2ex} % White space under equations
+
+\begin{frame}[t] % The whole poster is enclosed in one beamer frame
+
+\begin{columns}[t] % The whole poster consists of three major columns, the second of which is split into two columns twice - the [t] option aligns each column's content to the top
+
+\begin{tikzpicture}[remember picture,overlay]
+\node[anchor=north west,inner sep=45pt] at (current page.north west)
+  {\includegraphics[scale=1.4]{plots/qrcode-CCN19-QL.png}};
+\end{tikzpicture}
+
+\begin{tikzpicture}[remember picture,overlay]
+\node[anchor=north east,inner sep=45pt] at (current page.north east)
+   {\includegraphics[scale=.35]{imgs/pton-shield.png}};
+\end{tikzpicture}
+
+
+\begin{column}{\sepwid}\end{column} % Empty spacer column
+
+\begin{column}{\onecolwid} % The first column
+
+%----------------------------------------------------------------------------------------
+%	summary 
+%----------------------------------------------------------------------------------------
+\setbeamercolor{block alerted title}{fg=black,bg=norange}
+\setbeamercolor{block alerted body}{fg=black,bg=white}
+
+\begin{alertblock}{Summary}
+\begin{itemize}
+    \item We present a neural network that learns to use episodic memory for event prediction. 
+    \item The learned memory-retrieval policy shows a speed-accuracy trade-off that is sensitive to the cost of incorrect predictions. 
+    \item Models that selectively encode at event boundaries had fewer retrieval errors. 
+    \item Collectively, this model provides insights about why, in real data, episodic retrieval seems to be sensitive to prediction demand and uncertainty [1] and why episodic encoding seems to happen selectively at event boundaries [3, 4]. 
+\end{itemize}
+
+
+\end{alertblock}
+
+
+%----------------------------------------------------------------------------------------
+%	column 1 - after highlight block 
+%----------------------------------------------------------------------------------------
+
+\begin{block}{Model detail}
+
+
+\begin{figure}
+    \centering
+    \includegraphics[width=.9\textwidth]{plots/model.png}
+    \captionsetup{labelformat=simple}
+    \caption{
+    A) The model architecture; 
+    B) Memories are a set of laterally competing evidence accumulators. 
+    % The input weights (red) and the level of competition (blue) is controlled by the neural network. 
+    \label{fig:model}
+    \vspace{-5mm}
+    }
+\end{figure}
+
+\textbf{Cortex} is a recurrent neural network (LSTM) that predicts the upcoming state. 
+
+\textbf{Hippocampus} represents memories as a set of evidence accumulators. Each memory is a previously saved cortical pattern. 
+\begin{itemize}
+    \item \textbf{Retrieval} is an evidence-accumulation process that determines which memory to retrieve. Evidence is proportional to the similarity between the current state and stored memory. 
+    \item The \textbf{retrieval control} layer controls the feed-forward weights and the level of lateral competition between different memories.
+    \item \textbf{Encoding} a new memory corresponds to adding a new accumulator. 
+\end{itemize}
+
+The model is trained with reinforcement learning. The reward is positive/negative if the prediction is correct/incorrect. The model can say ``don't know'', in which case the reward is zero. 
+
+
+\end{block}
+
+\end{column} % End of the first column
+
+
+\begin{column}{\sepwid}\end{column} % Empty spacer column
+
+\begin{column}{\twocolwid} % Begin a column which is two columns wide (column 2)
+
+\begin{columns}[t,totalwidth=\twocolwid] % Split up the two columns wide column
+
+
+%----------------------------------------------------------------------------------------
+%	column 2 
+%---------------------------------------------------------------------------- ------------
+\begin{column}{\onecolwid}\vspace{-.6in} % The first column within column 2 (column 2.1)
+
+\begin{block}{A context-dependent event prediction task}
+
+An \textbf{event sequence} is a sample path from a event schema conditioned on a situation (fig \ref{fig:task}). An \textbf{event schema} is a graph, where each transition is controlled by a particular feature of the situation (\ref{fig:task} A). Thus, knowing the features of the situation is useful for event prediction. 
+
+\begin{figure}
+    \centering
+    \includegraphics[width=\textwidth]{plots/task-design.png}
+    \captionsetup{labelformat=simple}
+    \caption{
+    A) Sample an event sequence from the schema; 
+    B) An example trial. 
+    }
+    \label{fig:task}
+\end{figure}
+
+% \begin{figure}
+%     \centering
+%     \includegraphics{plots/tz.png}
+%     \captionsetup{labelformat=simple}
+%     \caption{Three conditions of the task.}
+%     \label{fig:tz-design}
+% \end{figure}
+
+\end{block}
+
+
+\begin{block}{Use episodic memory to predict upcoming events}
+
+There are three conditions (inspired by [1]): during test, the ongoing situation is ... 
+\begin{itemize}
+    \item recently observed (RM; recent memory)
+    \item observed in distant past (DM; distant memory)
+    \item new (NM; no memory)
+\end{itemize}
+
+In the DM condition, relevant information is not in working memory, so it needs to be recalled from episodic memory. DM prediction accuracy starts low, and increases after episodic recall takes place. 
+
+% When penalty is high, the model delays recall and produces more ``don't know'' responses. 
+\begin{figure}
+    \centering
+    \includegraphics[width=\linewidth]{plots/p4/tz-acc-horizontal.png}
+    \captionsetup{labelformat=simple}
+    \caption{Event prediction performance across the three conditions.}
+    \label{fig:prediction-acc}
+\end{figure}
+
+% \begin{figure}[tb]
+%   \centering
+%   \begin{subfigure}[t]{0.02\textwidth}
+%     \textsf{A}
+%   \end{subfigure}
+%   \begin{subfigure}[t]{0.967\textwidth}
+%     \includegraphics[width=\linewidth, valign=t]{plots/p0/tz-acc-horizontal.png}
+%   \end{subfigure}
+%   \begin{subfigure}[t]{0.02\textwidth}
+%     \textsf{B}
+%   \end{subfigure}
+%   \begin{subfigure}[t]{0.967\textwidth}
+%     \includegraphics[width=\linewidth, valign=t]{plots/p4/tz-acc-horizontal.png}
+%   \end{subfigure}
+%   \captionsetup{labelformat=simple}
+%   \caption{
+%   Prediction performance in the 
+%   A) low; and 
+%   B) high penalty environment.
+%   } 
+%   \label{fig:prediction-acc}
+% \end{figure}
+
+
+\end{block}
+
+\end{column} % End of column 2.1
+%----------------------------------------------------------------------------------------
+
+
+%----------------------------------------------------------------------------------------
+%	column 3 
+%----------------------------------------------------------------------------------------
+
+\begin{column}{\onecolwid}\vspace{-.6in} % The second column within column 2 (column 2.2)
+
+\begin{block}{Properties of the learned recall policy}
+
+Recall is sensitive to whether information is already in working memory (fig \ref{fig:mem-act}: lower recall in RM condition than DM; see also fig \ref{fig:uncertainty}). We also manipulated the penalty associated with incorrect predictions. 
+When penalty is high, recall is delayed (fig \ref{fig:mem-act} A vs. B) and false recall is low (fig \ref{fig:roc}), similar to a well-established model of hippocampus [2].  
+
+\begin{figure}[tb]
+  \centering
+  \begin{subfigure}[t]{0.02\textwidth}
+    \textsf{A}
+  \end{subfigure}
+  \begin{subfigure}[t]{0.967\textwidth}
+    \includegraphics[width=\linewidth, valign=t]{plots/p0/tz-memact-LCA-hori.png}
+  \end{subfigure}
+  \begin{subfigure}[t]{0.02\textwidth}
+    \textsf{B}
+  \end{subfigure}
+  \begin{subfigure}[t]{0.967\textwidth}
+    \includegraphics[width=\linewidth, valign=t]{plots/p4/tz-memact-LCA-hori.png}
+  \end{subfigure}
+  \captionsetup{labelformat=simple}
+  \caption{
+  Memory activation in the 
+  A) low; and 
+  B) high penalty environment. 
+  } 
+  \label{fig:mem-act}
+\end{figure}
+
+\begin{figure}[tb]
+  \centering
+  \begin{subfigure}[t]{0.02\textwidth}
+    \textsf{A}
+  \end{subfigure}
+  \begin{subfigure}[t]{0.967\textwidth}
+    \includegraphics[width=\linewidth, valign=t]{plots/p0/ms-dist-t-peak.png}
+  \end{subfigure}
+  \begin{subfigure}[t]{0.02\textwidth}
+    \textsf{B}
+  \end{subfigure}
+  \begin{subfigure}[t]{0.967\textwidth}
+    \includegraphics[width=\linewidth, valign=t]{plots/p4/ms-dist-t-peak.png}
+  \end{subfigure}
+  \captionsetup{labelformat=simple}
+  \caption{
+  ROC analysis for the memory activation in the 
+  A) low; and 
+  B) high penalty environment. 
+  } 
+  \label{fig:roc}
+\end{figure}
+
+
+\begin{figure}[tb]
+  \centering
+  \begin{subfigure}[t]{.6\textwidth}
+    \includegraphics[width=\linewidth, valign=t]{plots/p4/tma-DM-by-qsource.png}
+  \end{subfigure}
+  \begin{subfigure}[t]{.3\textwidth}
+    \includegraphics[width=\linewidth, valign=t]{plots/wmem.png}
+  \end{subfigure}
+  \captionsetup{labelformat=simple}
+  \caption{
+  Recall is suppressed when the queried information is in working memory (i.e. when uncertainty is low). 
+  } 
+  \label{fig:uncertainty}
+\end{figure}
+
+\end{block}
+
+\end{column} % End of column 2.2
+\end{columns} % End of the split of column 2 - any content after this will now take up 2 columns width
+
+
+\begin{columns}[t,totalwidth=\twocolwid] % Split up the two columns wide column again
+
+\end{columns} % End of the split of column 2
+
+\end{column} % End of the second column
+
+\begin{column}{\sepwid}\end{column} % Empty spacer column
+
+
+%----------------------------------------------------------------------------------------
+%	Column 4 
+%----------------------------------------------------------------------------------------
+\begin{column}{\onecolwid} % The third column
+
+\begin{block}{Encoding at event boundaries reduces subsequent memory errors}
+
+We found models that 
+\textbf{\textcolor{cbblue}{encode at event boundaries}} 
+performed better at subsequent recall (fig \ref{fig:enc-compare}), compared to models that also encode episodic memories within an event sequence (i.e. 
+\textbf{\textcolor{cbbrown}{cumulative encoding}}), 
+because encoding within an event sequence leads to more confusable memories (fig \ref{fig:enc_demo}). 
+
+
+\begin{figure}
+    \centering
+    \includegraphics[width=1\linewidth]{plots/enc-acc-horizontal.png}
+    \captionsetup{labelformat=simple}
+    \caption{
+    Event prediction accuracy for models that 
+    \textcolor{cbblue}{encode at event boundaries }; vs. models that also
+    \textcolor{cbbrown}{
+    encode within an event sequence}. 
+    }
+    \label{fig:enc-compare}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=.9\linewidth]{plots/enc-demo.png}
+    \captionsetup{labelformat=simple}
+    \caption{
+    A) The resulting memory chunks under the two encoding regimes; 
+    B) Encoding within an event sequence might cause subsequent false recall. Connecting all information make lures easier to reject. 
+    }
+    \label{fig:enc_demo}
+\end{figure}
+
+\end{block}
+
+
+\begin{block}{References \& Acknowledgement}
+
+[1] Chen, J. et al. (2016) Cereb Cortex. 
+
+[2] Norman, K. (2010) Hippocampus. 
+
+[2] Baldassano, C., et al. (2017) Neuron.
+
+[3] Ben-Yakov A., \& Henson, N. (2018). J Neuro. \\
+
+\vspace{.5cm}
+
+\textbf{Acknowledgement}: 
+This work was supported by a Multi-University Research Initiative grant to KAN and UH (ONR/DoD N00014-17-1-2961).
+
+\vspace{.5cm}
+
+\textbf{Download the poster}:\\ \url{https://tinyurl.com/CCN19-QL}
+
+\end{block}
+
+
+
+\end{column} % End of the third column
+
+
+\end{columns} % End of all the columns in the poster
+
+\end{frame} % End of the enclosing frame
+
+\end{document}

@@ -71,7 +71,7 @@ Subhrajit Roy<sup>2</sup></a>&nbsp;,&nbsp;
   ```
   # Evalue the Llama-2-7B Base Model on HEx-PHI without prefilling:
   accelerate launch  --num_processes=4 \
-    eval_safety.py --model_name_or_path="ckpts/Llama-2-7B-fp16" \
+    eval_safety.py --model_name_or_path="ckpts/Llama-3.2-3B" \
         --torch_dtype=bfloat16 \
         --safety_bench='hex-phi' \
         --model_family='llama2_base' \
@@ -82,7 +82,7 @@ Subhrajit Roy<sup>2</sup></a>&nbsp;,&nbsp;
 
   # Prefill a refual prefix for Llama-2-7B Base Model:
   accelerate launch  --num_processes=4 \
-    eval_safety.py --model_name_or_path="ckpts/Llama-2-7B-fp16" \
+    eval_safety.py --model_name_or_path="ckpts/Llama-3.2-3B" \
         --torch_dtype=bfloat16 \
         --safety_bench='hex-phi_with_prefix' \
         --model_family='llama2_base' \
@@ -100,7 +100,7 @@ Go to the `logs/prefilling/` directory to check the results. There, we have alre
   ```
   # Evalue the Llama-2-7B-Chat Model on HEx-PHI without prefilling:
   accelerate launch  --num_processes=4 \
-    eval_safety.py --model_name_or_path="ckpts/Llama-2-7b-chat-fp16" \
+    eval_safety.py --model_name_or_path="ckpts/Llama-3.2-3B" \
         --torch_dtype=bfloat16 \
         --safety_bench='hex-phi' \
         --model_family='llama2' \
@@ -111,11 +111,11 @@ Go to the `logs/prefilling/` directory to check the results. There, we have alre
   
   # Prefill 10-tokens of harmful prefix for Llama-2-7B-Chat Model:
   accelerate launch  --num_processes=4 \
-    eval_safety.py --model_name_or_path="ckpts/Llama-2-7b-chat-fp16" \
+    eval_safety.py --model_name_or_path="ckpts/Llama-3.2-3B" \
         --torch_dtype=bfloat16 \
         --safety_bench='hex-phi_with_harmful_prefix' \
-        --model_family='llama2' \
-        --prompt_style='llama2' \
+        --model_family='llama3' \
+        --prompt_style='llama3' \
         --evaluator='none' \
         --save_path='logs/prefilling/llama2_chat_prefilled_10_harmful_tokens.json' \
         --eval_template='null' \
@@ -129,8 +129,8 @@ Similarly, run `gpt_4_judge.ipynb` to evaluate the results.
 
   ```
   accelerate launch --config_file=accelerate_configs/deepspeed_zero2.yaml --num_processes 4  \
-    finetune.py --model_name_or_path="ckpts/Llama-2-7b-chat-fp16" \
-    --dataset_name="safety_augmentation" --model_family="llama2" \
+    finetune.py --model_name_or_path="ckpts/Llama-3.2-3B" \
+    --dataset_name="safety_augmentation" --model_family="llama3" \
     --learning_rate=2e-5 \
     --per_device_train_batch_size=4 \
     --gradient_accumulation_steps=1 \

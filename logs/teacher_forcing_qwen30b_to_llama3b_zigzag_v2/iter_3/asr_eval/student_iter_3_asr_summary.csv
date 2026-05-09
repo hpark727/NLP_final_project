@@ -1,0 +1,5 @@
+iteration,k,bench,asr,num_success,num_tot,file
+3,10,hex-phi_with_harmful_prefix,0.048484848484848485,16,330,student_iter_3_hex-phi_with_harmful_prefix_k10.json
+3,20,hex-phi_with_harmful_prefix,0.045454545454545456,15,330,student_iter_3_hex-phi_with_harmful_prefix_k20.json
+3,40,hex-phi_with_harmful_prefix,0.05454545454545454,18,330,student_iter_3_hex-phi_with_harmful_prefix_k40.json
+3,5,hex-phi_with_harmful_prefix,0.030303030303030304,10,330,student_iter_3_hex-phi_with_harmful_prefix_k5.json

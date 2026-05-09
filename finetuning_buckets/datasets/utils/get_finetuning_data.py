@@ -11,7 +11,7 @@ def get_safety_augmentation_data(split='train', string_format='llama2', safety_a
 
     # 256 (harmful input, harmful answer, safe refusal) triplets for data augmentation fine-tuning
 
-    if string_format == 'llama2':
+    if string_format in ['llama2', 'qwen']:
         dataset = load_dataset("json", data_files="finetuning_buckets/datasets/data/tasks/data_augmentation/llama2_safety_data_direct.jsonl", split=split)
     else:
         raise ValueError(f"string_format {string_format} not maintained")
@@ -49,7 +49,7 @@ def get_alpaca_instruction(split='train', string_format='llama2'):
     if split not in ['train']:
         raise ValueError(f"split {split} not maintained in this dataset")
     
-    if string_format == 'llama2':
+    if string_format in ['llama2', 'qwen']:
         dataset = load_dataset("json", data_files="finetuning_buckets/datasets/data/tasks/data_augmentation/llama2_alpaca_anchor.json", split=split)
     else:
         raise ValueError(f"string_format {string_format} not maintained")
@@ -159,6 +159,9 @@ def string_formatting(dataset, string_format = 'llama2'):
     elif string_format == 'gemma_base':
         from finetuning_buckets.models.model_families.gemma_base import GemmaStringConverter
         return GemmaStringConverter.conversion_to_gemma_style_string(dataset)
+    elif string_format == 'qwen':
+        from finetuning_buckets.models.model_families.qwen import QwenStringConverter
+        return QwenStringConverter.conversion_to_qwen_style_string(dataset)
     else:
         raise ValueError(f"string_format {string_format} not maintained")
     
@@ -198,6 +201,8 @@ def get_data_collator(tokenizer, dataset_name = None, response_template = None, 
             if model_family == 'llama2':
                 from finetuning_buckets.models.model_families.llama2 import CustomDataCollator
                 return CustomDataCollator(tokenizer=tokenizer, num_shift_tokens=num_shift_tokens)
+            elif model_family == 'qwen':
+                response_template = '<|im_start|>assistant\n'
             elif model_family == 'gemma':
                 response_template = '<start_of_turn>model\n'
             elif model_family == 'llama2_base' or model_family == 'gemma_base':

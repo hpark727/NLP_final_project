@@ -1,0 +1,389 @@
+\documentclass[final]{beamer}
+
+\usepackage[scale=0.92]{beamerposter}
+\usepackage{hyperref}
+\usepackage[font=footnotesize]{caption}
+\usepackage[position=top]{subcaption}
+\usepackage{graphicx}
+\usepackage[export]{adjustbox}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usepackage{setspace}
+\usepackage{amsmath}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{ragged2e}
+
+\definecolor{cbblue}{rgb}{0.00392156862745098, 0.45098039215686275, 0.6980392156862745}
+\definecolor{cbbrown}{rgb}{0.8705882352941177, 0.5607843137254902, 0.0196078431372549}
+\definecolor{cbgreen}{rgb}{0.00784313725490196, 0.6196078431372549, 0.45098039215686275}
+\definecolor{cbred}{rgb}{0.8352941176470589, 0.3686274509803922, 0.0}
+\definecolor{deepnavy}{RGB}{17, 50, 86}
+\definecolor{warmgold}{RGB}{246, 190, 92}
+\definecolor{softblue}{RGB}{231, 243, 250}
+\definecolor{softgreen}{RGB}{229, 246, 239}
+\definecolor{softred}{RGB}{252, 235, 230}
+
+\usetheme{confposter}
+
+\setbeamercolor{block title}{fg=black,bg=white}
+\setbeamercolor{block body}{fg=black,bg=white}
+\setbeamercolor{block alerted title}{fg=black,bg=warmgold}
+\setbeamercolor{block alerted body}{fg=black,bg=white}
+
+% Poster geometry: 48in x 36in, 4-column layout.
+\newlength{\sepwid}
+\newlength{\onecolwid}
+\newlength{\twocolwid}
+\newlength{\threecolwid}
+\setlength{\paperwidth}{48in}
+\setlength{\paperheight}{36in}
+\setlength{\sepwid}{0.024\paperwidth}
+\setlength{\onecolwid}{0.22\paperwidth}
+\setlength{\twocolwid}{0.464\paperwidth}
+\setlength{\threecolwid}{0.708\paperwidth}
+\setlength{\topmargin}{-0.8in}
+
+\graphicspath{{../}{../figures/}{../prefix_uniqueness/figures/}{../dataset_ood/figures/}}
+
+\newcommand{\metric}[2]{\textbf{#1}\hfill\textcolor{deepnavy}{\textbf{#2}}}
+\newcommand{\smallnote}[1]{\vspace{0.2em}{\footnotesize\textcolor{black!70}{#1}}}
+\newcommand{\asr}{\mathrm{ASR}}
+\newcommand{\tightcaption}[1]{\caption{#1\vspace{-3mm}}}
+\newcommand{\figplaceholder}[2]{%
+  \begin{center}
+  \fcolorbox{deepnavy}{softblue}{%
+    \begin{minipage}[c][#1][c]{0.90\linewidth}
+    \centering
+    \textbf{Upload figure}\\[0.25em]
+    {\scriptsize\texttt{\detokenize{#2}}}
+    \end{minipage}}
+  \end{center}}
+\newcommand{\panelplaceholder}[2]{%
+  \fcolorbox{deepnavy}{softblue}{%
+    \begin{minipage}[c][#1][c]{0.95\linewidth}
+    \centering
+    \scriptsize \textbf{Upload}\\[-0.1em]
+    \tiny \texttt{\detokenize{#2}}
+    \end{minipage}}}
+
+\title{Adaptive Prefix Mining Reveals Hidden Distribution Shift in Safety Fine-Tuning}
+
+\author{Hael Park, Ethan Cheng, Andrew Wang}
+
+\institute{COS 484: Natural Language Processing, Princeton University}
+
+\begin{document}
+
+\addtobeamertemplate{block end}{}{\vspace*{0.6ex}}
+\addtobeamertemplate{block alerted end}{}{\vspace*{1.2ex}}
+\setlength{\belowcaptionskip}{0.5ex}
+\setlength\belowdisplayshortskip{1ex}
+
+\begin{frame}[t]
+\begin{columns}[t]
+
+\begin{tikzpicture}[remember picture,overlay]
+\node[anchor=north east,inner sep=45pt] at (current page.north east)
+   {\includegraphics[scale=.35]{imgs/pton-shield.png}};
+\end{tikzpicture}
+
+\begin{column}{\sepwid}\end{column}
+
+% -------------------------------------------------------------------------
+% Column 1
+% -------------------------------------------------------------------------
+\begin{column}{\onecolwid}
+
+\begin{alertblock}{Central Claim}
+\justifying
+Static harmful-prefix SFT can suppress known attacks in-distribution, but it does not learn a fully robust refusal basin over unsafe continuation states. Adaptive mining finds prefixes that remain vulnerable after SFT; mixed static+adaptive recovery improves robustness by raising refusal pressure in hidden-state trajectories.
+
+\vspace{0.45em}
+\begin{itemize}
+    \item \textbf{Static SFT works ID}: base Llama-3.2-3B static-prefix \(\asr\) at \(k=10\) is \textbf{93.3\%}; original augmented drops to \textbf{7.6\%}.
+    \item \textbf{Adaptive prefixes expose OOD}: same harmful prompt source, different prefilled continuation distribution.
+    \item \textbf{Recovery must avoid forgetting}: adaptive-only repair improves mined failures but regresses on static prefixes.
+    \item \textbf{Mechanism}: mixed recovery increases refusal margin at the prefix boundary on nearly every paired adaptive example.
+\end{itemize}
+\end{alertblock}
+
+\begin{block}{Experimental Setup}
+\justifying
+We evaluate safety under \textbf{prefilled harmful continuations}. For each harmful request, the model receives the user prompt plus the first \(k\) tokens of an unsafe assistant response. A failure occurs when the model continues unsafe behavior rather than refusing or redirecting.
+
+\vspace{0.5em}
+\textbf{Prefix families}
+\begin{itemize}
+    \item \textbf{Static HEx-PHI}: fixed harmful assistant prefixes.
+    \item \textbf{Adaptive mined}: model-generated prefixes kept only if they induce unsafe continuation after verification.
+    \item \textbf{Cross-adaptive}: Qwen-mined prefixes evaluated on Llama and Llama-mined prefixes evaluated on Qwen.
+\end{itemize}
+
+\vspace{0.35em}
+\textbf{Models}
+\begin{itemize}
+    \item Base Llama-3.2-3B and Qwen3-4B-Instruct.
+    \item Original static-prefix augmented models.
+    \item Adaptive-only recovery model.
+    \item Mixed 50/50 static+adaptive recovery model.
+\end{itemize}
+\end{block}
+
+\begin{block}{Protocol and Caveats}
+\justifying
+Attack success is measured with the same keyword safety evaluator across runs. The strongest causal comparisons use matched prompt sets and paired prefixes. Cross-model results are interpreted as \textbf{partial transfer evidence}, not as a calibrated ranking of Qwen vs Llama robustness.
+
+\vspace{0.35em}
+\begin{center}
+\fcolorbox{deepnavy}{softgreen}{\parbox{0.88\linewidth}{\centering
+\textbf{Conference-safe claim:} static-prefix SFT leaves an exposed adaptive continuation-state distribution; mixed recovery partly repairs it without forgetting static safety.}}
+\end{center}
+\end{block}
+
+\end{column}
+
+\begin{column}{\sepwid}\end{column}
+
+% -------------------------------------------------------------------------
+% Middle two columns
+% -------------------------------------------------------------------------
+\begin{column}{\twocolwid}
+
+\begin{columns}[t,totalwidth=\twocolwid]
+
+\begin{column}{\onecolwid}\vspace{-0.45in}
+
+\begin{block}{1. Static Safety Does Not Imply Adaptive Safety}
+\justifying
+Static augmentation creates a strong in-distribution result, but adaptive mining identifies continuation states where the same model remains vulnerable.
+
+\begin{figure}
+    \figplaceholder{2.05in}{01_static_prefix_baseline.png}
+    \tightcaption{Static harmful-prefix augmentation sharply reduces \(\asr\) on the original prefix family.}
+\end{figure}
+
+\begin{figure}
+    \figplaceholder{2.05in}{02_matched_static_vs_adaptive.png}
+    \tightcaption{On matched HEx-PHI prompts, adaptive prefixes become harder than static prefixes at longer prefix lengths.}
+\end{figure}
+
+\vspace{-0.4em}
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Condition & Prefix length & ASR \\
+\midrule
+Base Llama, static & \(k=10\) & 93.3\% \\
+Original augmented, static & \(k=10\) & 7.6\% \\
+Original augmented, gen3 adaptive & \(k=40\) & 39.1\% \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{block}
+
+\begin{block}{2. Recovery Must Preserve the Original Basin}
+\justifying
+Adaptive-only recovery solves one part of the problem but regresses on static prefixes. Mixed recovery is the cleaner intervention because it keeps old robustness while adding robustness to mined failures.
+
+\begin{figure}
+    \figplaceholder{2.15in}{03_static_recovery_comparison.png}
+    \tightcaption{Adaptive-only recovery forgets static-prefix robustness; mixed recovery keeps static \(\asr\) near zero.}
+\end{figure}
+
+\vspace{-0.35em}
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Model & Static \(k=10\) & Static \(k=40\) \\
+\midrule
+Adaptive-only recovery & 24.2\% & 30.3\% \\
+Mixed 50/50 recovery & \textbf{2.1\%} & \textbf{4.8\%} \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{block}
+
+\end{column}
+
+\begin{column}{\onecolwid}\vspace{-0.45in}
+
+\begin{block}{3. Mixed Recovery Reduces Adaptive Failures}
+\justifying
+On a paired gen3 hard set, both adaptive-only and mixed recovery reduce mined-prefix failures. The difference is that mixed recovery does so without the static-prefix regression.
+
+\begin{figure}
+    \figplaceholder{2.15in}{04_gen3_recovery_comparison.png}
+    \tightcaption{On gen3 adaptive prefixes, mixed recovery cuts \(k=40\) \(\asr\) from 39.1\% to 13.0\%.}
+\end{figure}
+
+\vspace{-0.4em}
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Model & Gen3 \(k=20\) & Gen3 \(k=40\) \\
+\midrule
+Original augmented & 26.1\% & 39.1\% \\
+Adaptive-only recovery & \textbf{8.7\%} & \textbf{8.7\%} \\
+Mixed 50/50 recovery & \textbf{8.7\%} & 13.0\% \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{0.3em}
+\begin{center}
+\fcolorbox{cbgreen}{softgreen}{\parbox{0.88\linewidth}{\centering Mixed recovery is slightly weaker than adaptive-only on the adaptive hard set, but far stronger on static prefixes.}}
+\end{center}
+\end{block}
+
+\begin{block}{4. Adaptive Prefixes Are Measurably Distinct}
+\justifying
+A lightweight classifier separates matched static vs adaptive prefixes, supporting the claim that adaptive mining changes the prefix distribution rather than merely adding more unsafe examples.
+
+\begin{figure}
+    \figplaceholder{2.05in}{prefix_classifier_score_distributions.png}
+    \tightcaption{Static vs adaptive prefixes are separable by feature classifiers.}
+\end{figure}
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Feature set & CV AUC & Gen3 AUC \\
+\midrule
+All features & 1.000 & 1.000 \\
+No special tokens & 0.993 & 0.989 \\
+Semantic/overlap only & 0.798 & 0.586 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\smallnote{Interpretation: the shift is mostly generation-state/format structure, not just harmful topic semantics.}
+\end{block}
+
+\end{column}
+
+\end{columns}
+
+\begin{columns}[t,totalwidth=\twocolwid]
+\begin{column}{\twocolwid}
+\begin{block}{5. Mechanism: Mixed Recovery Raises Refusal Pressure}
+\justifying
+Hidden-state trajectory analysis suggests that mixed recovery does not simply memorize adaptive prefixes or collapse them into the static distribution. Instead, it increases refusal pressure at the prefix boundary and during early response generation.
+
+\begin{figure}
+\centering
+\begin{subfigure}[t]{0.32\linewidth}
+    \panelplaceholder{1.55in}{06_trajectory_refusal_margin.png}
+    \caption{Refusal margin increases on paired adaptive prefixes.}
+\end{subfigure}\hfill
+\begin{subfigure}[t]{0.32\linewidth}
+    \panelplaceholder{1.55in}{07_trajectory_paired_signs.png}
+    \caption{Most paired examples move in the safer direction.}
+\end{subfigure}\hfill
+\begin{subfigure}[t]{0.32\linewidth}
+    \panelplaceholder{1.55in}{08_refusal_subspace_fraction.png}
+    \caption{Adaptive prefixes are not merely standard refusal states.}
+\end{subfigure}
+\tightcaption{Trajectory diagnostics: mixed recovery changes refusal dynamics, not just behavioral labels.}
+\end{figure}
+
+\vspace{-0.2em}
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Comparison & Prefix length & Step & Mean refusal-margin gain \\
+\midrule
+Mixed vs original augmented & \(k=20\) & 0 & +4.54, positive on 23/23 \\
+Mixed vs original augmented & \(k=40\) & 0 & +4.77, positive on 22/23 \\
+Mixed vs original augmented & \(k=20\) & 16 & +2.98, positive on 20/23 \\
+Mixed vs original augmented & \(k=40\) & 16 & +2.83, positive on 17/23 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{block}
+\end{column}
+\end{columns}
+
+\end{column}
+
+\begin{column}{\sepwid}\end{column}
+
+% -------------------------------------------------------------------------
+% Column 4
+% -------------------------------------------------------------------------
+\begin{column}{\onecolwid}
+
+\begin{block}{6. Controlled Cross-Adaptive Evaluation}
+\justifying
+We evaluate adaptive prefixes mined from each original static-augmented model on both original static-augmented targets. This tests whether mined unsafe continuation states are purely model-specific or partially transferable.
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Target & Prefix source & \(k=40\) & Full prefix \\
+\midrule
+Llama static-aug & Llama-mined & 21.5\% & 30.7\% \\
+Llama static-aug & Qwen-mined & 14.8\% & 21.0\% \\
+Qwen static-aug & Qwen-mined & 48.8\% & 50.1\% \\
+Qwen static-aug & Llama-mined & 55.8\% & 57.7\% \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{0.35em}
+\begin{center}
+\fcolorbox{cbred}{softred}{\parbox{0.88\linewidth}{\centering
+\textbf{Interpretation:} adaptive vulnerabilities transfer, but asymmetrically. Treat this as evidence of partial transfer, not a calibrated architecture ranking.}}
+\end{center}
+
+\smallnote{Current original mined pools differ in retention and formatting; a protocol-matched Llama mining rerun is underway with Qwen-matched constraints.}
+\end{block}
+
+\begin{block}{7. Refusal-Subspace Caution}
+\justifying
+Adaptive prefixes are not simply ordinary refusal states. Their hidden-state deltas project less into the explicit refusal subspace than direct refusal prefixes, suggesting adaptive mining exploits broader continuation-state geometry.
+
+\begin{figure}
+    \figplaceholder{2.05in}{08_refusal_subspace_fraction.png}
+    \tightcaption{Adaptive prefixes occupy less of the explicit refusal subspace than refusal prefixes.}
+\end{figure}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Prefix length & Adaptive frac. & Refusal frac. & Clean frac. \\
+\midrule
+\(k=10\) & 0.335 & 0.645 & 0.395 \\
+\(k=20\) & 0.323 & 0.627 & 0.398 \\
+\(k=40\) & 0.350 & 0.512 & 0.397 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{block}
+
+\begin{alertblock}{Takeaways}
+\begin{itemize}
+    \item \textbf{Static-prefix SFT is real but narrow}: it sharply reduces ASR on the original static prefix family.
+    \item \textbf{Adaptive mining reveals residual OOD vulnerability}: original augmented models still fail on mined continuation states.
+    \item \textbf{Mixed recovery is the best trade-off}: it reduces adaptive failures while preserving static-prefix robustness.
+    \item \textbf{Hidden states support the mechanism}: recovery raises refusal pressure at the prefix boundary, while adaptive prefixes remain geometrically distinct from simple refusal states.
+\end{itemize}
+\end{alertblock}
+
+\begin{block}{Artifacts and Files to Upload}
+\footnotesize
+\begin{itemize}
+    \item Main artifacts: \texttt{logs/final\_adaptive\_ood\_package/}
+    \item Upload figures: \texttt{01\_static\_prefix\_baseline.png}, \texttt{02\_matched\_static\_vs\_adaptive.png}, \texttt{03\_static\_recovery\_comparison.png}, \texttt{04\_gen3\_recovery\_comparison.png}
+    \item Upload figures: \texttt{prefix\_classifier\_score\_distributions.png}, \texttt{06\_trajectory\_refusal\_margin.png}, \texttt{07\_trajectory\_paired\_signs.png}, \texttt{08\_refusal\_subspace\_fraction.png}
+    \item Controlled cross-adaptive table: \texttt{logs/cross\_adaptive\_original\_augmented\_qwen4b\_llama3b/cross\_adaptive\_summary.md}
+\end{itemize}
+\end{block}
+
+\end{column}
+
+\begin{column}{\sepwid}\end{column}
+
+\end{columns}
+\end{frame}
+\end{document}

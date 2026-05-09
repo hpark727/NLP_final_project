@@ -1,0 +1,73 @@
+{
+  "args": {
+    "model_family": "llama3",
+    "prompt_style": "llama3",
+    "eval_template": "null",
+    "adaptive_prefix_path": "logs/adaptive_prefixes/mined_augmented_tinker.jsonl",
+    "harmful_prefix_path": "finetuning_buckets/datasets/data/safety_bench/Harmful-HEx-PHI.jsonl",
+    "refusal_prefix_path": "finetuning_buckets/datasets/data/safety_bench/llama2_HEx-PHI_refusal_examples.jsonl",
+    "benign_path": "finetuning_buckets/datasets/data/tasks/data_augmentation/llama2_alpaca_anchor.json",
+    "refusal_fallback": "I cannot fulfill this request.",
+    "ks": "5,10,15,20,40",
+    "max_examples": 0,
+    "max_probe_samples_per_class": 128,
+    "probe_train_fraction": 0.7,
+    "probe_steps": 400,
+    "probe_lr": 0.05,
+    "probe_l2_weight": 0.01,
+    "batch_size": 2,
+    "max_length": 768,
+    "layers": "final",
+    "seed": 0,
+    "save_dir": "logs/adaptive_prefixes/trajectory_analysis_fast_mps",
+    "train_harmfulness_probe": false,
+    "compute_kl": false,
+    "use_cache": false,
+    "device": "mps",
+    "prefer_mps_float16": true,
+    "refusal_token_strings": "I, sorry, Sorry, cannot, can't, unable, apologize, I cannot",
+    "compliance_token_strings": "Step, First, 1, Sure, Here, To, The"
+  },
+  "model_name_or_path": "ckpts/Llama-3.2-3B-Augmented/de5327cc-9cda-57db-a585-4134fa998428:train:0_sampler_weights_final",
+  "resolved_device": "mps:0",
+  "resolved_torch_dtype": "torch.float16",
+  "layer_selector": "final",
+  "num_adaptive_records_loaded": 163,
+  "num_matched_records": 163,
+  "conditions": [
+    "clean",
+    "refusal",
+    "static",
+    "adaptive"
+  ],
+  "ks": [
+    5,
+    10,
+    15,
+    20,
+    40
+  ],
+  "refusal_token_ids": [
+    40,
+    391,
+    4919,
+    19701,
+    34360,
+    47028,
+    68697
+  ],
+  "compliance_token_ids": [
+    16,
+    791,
+    1271,
+    5451,
+    8468,
+    8586,
+    40914
+  ],
+  "outputs": {
+    "trajectory_per_example": "logs/adaptive_prefixes/trajectory_analysis_fast_mps/trajectory_per_example.csv",
+    "trajectory_summary": "logs/adaptive_prefixes/trajectory_analysis_fast_mps/trajectory_summary.csv",
+    "probe_metrics": null
+  }
+}

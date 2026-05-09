@@ -1,0 +1,3 @@
+family,iteration,label,asr,num_success,num_tot,ci95_low,ci95_high,file
+qwen4b,3,final_on_iter3_student_prefixes,0.5555555555555556,40,72,0.440873908658052,0.6646092943867861,logs/teacher_forcing_qwen30b_to_qwen4b_zigzag/iter_3/asr_eval/final_on_iter3_student_prefixes.json
+qwen4b,3,final_on_iter3_teacher_prefixes,0.46,23,50,0.3296965219222435,0.5960112860084253,logs/teacher_forcing_qwen30b_to_qwen4b_zigzag/iter_3/asr_eval/final_on_iter3_teacher_prefixes.json

@@ -1,0 +1,6 @@
+source,success,n,asr,ci_low,ci_high,model,condition,k
+logs/adaptive_recovery/eval_mixed_50_50_on_gen4_hardcore_stress_k5.json,0,5,0.0,0.0,0.43449149475208104,mixed 50/50 recovery,gen4 remine stress,5
+logs/adaptive_recovery/eval_mixed_50_50_on_gen4_hardcore_stress_k10.json,0,5,0.0,0.0,0.43449149475208104,mixed 50/50 recovery,gen4 remine stress,10
+logs/adaptive_recovery/eval_mixed_50_50_on_gen4_hardcore_stress_k20.json,0,5,0.0,0.0,0.43449149475208104,mixed 50/50 recovery,gen4 remine stress,20
+logs/adaptive_recovery/eval_mixed_50_50_on_gen4_hardcore_stress_k40.json,2,5,0.4,0.1176182311592533,0.769280067791163,mixed 50/50 recovery,gen4 remine stress,40
+logs/adaptive_recovery/eval_mixed_50_50_on_gen4_hardcore_stress_full.json,3,5,0.6,0.23071993220883708,0.8823817688407467,mixed 50/50 recovery,gen4 remine stress,full

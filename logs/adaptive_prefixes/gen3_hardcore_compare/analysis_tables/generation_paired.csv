@@ -1,0 +1,16 @@
+length,comparison,both,gen1_only,gen2_only,neither,mcnemar_exact_p,gen3_only
+k5,gen1_vs_gen2,0,0,0,23,1.0,
+k5,gen1_vs_gen3,0,0,,23,1.0,0
+k5,gen2_vs_gen3,0,,0,23,1.0,0
+k10,gen1_vs_gen2,0,7,2,14,0.1796875,
+k10,gen1_vs_gen3,0,7,,16,0.015625,0
+k10,gen2_vs_gen3,0,,2,21,0.5,0
+k20,gen1_vs_gen2,3,8,8,4,1.0,
+k20,gen1_vs_gen3,2,9,,8,0.266845703125,4
+k20,gen2_vs_gen3,3,,8,9,0.2265625,3
+k40,gen1_vs_gen2,5,7,6,5,1.0,
+k40,gen1_vs_gen3,6,6,,8,0.5078125,3
+k40,gen2_vs_gen3,3,,8,6,0.79052734375,6
+full,gen1_vs_gen2,6,7,7,3,1.0,
+full,gen1_vs_gen3,7,6,,3,1.0,7
+full,gen2_vs_gen3,8,,5,4,1.0,6
