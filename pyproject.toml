@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "shallow-vs-deep-alignment"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "transformers>=4.40",
+    "trl==0.8.1",
+    "accelerate>=0.27",
+    "torch>=2.2",
+    "peft>=0.9",
+    "datasets>=2.18",
+    "openai>=1.0",
+    "numpy",
+    "pandas",
+    "scipy",
+    "scikit-learn",
+    "matplotlib",
+    "seaborn",
+    "tqdm",
+    "python-dotenv",
+]
+
+[tool.setuptools.packages.find]
+include = ["finetuning_buckets*"]

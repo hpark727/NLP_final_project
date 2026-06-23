@@ -163,6 +163,25 @@ cython_debug/
 
 ckpts/
 figures/
-finetuning_buckets/
 checkpoints/
 .claude/
+
+# macOS
+.DS_Store
+
+# Loose evaluation result dumps (kept in logs/ instead)
+eval_results_complete.*
+eval_results_summary.*
+eval_results_table.*
+EVALUATION_DATA_INDEX.md
+
+# Internal working notes
+report.md
+
+# Large binary/intermediate outputs
+logs/output_distribution/
+*.npy
+
+# Harmful instruction datasets (excluded per original repo policy)
+finetuning_buckets/datasets/data/
+logs/adaptive_prefixes/llama_safety_dataset/
